@@ -1,23 +1,25 @@
-import logo from './logo.svg';
+import React from 'react';
+import { Routes, Route, Link } from 'react-router-dom';
+import FormPage from './FormPage';
+import AdminGate from './AdminGate';
 import './App.css';
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      {/* Navigation Bar (public — no admin link) */}
+      <nav className="nav-bar">
+        <div className="nav-container">
+          <Link to="/" className="nav-logo">⛪ CTCA Directory</Link>
+        </div>
+      </nav>
+
+      {/* Routes */}
+      <Routes>
+        <Route path="/" element={<FormPage />} />
+        <Route path="/admin" element={<AdminGate />} />
+        <Route path="*" element={<FormPage />} />
+      </Routes>
     </div>
   );
 }
