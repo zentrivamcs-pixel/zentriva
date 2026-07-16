@@ -25,15 +25,18 @@
      ============================================ */
   
   .nav-bar {
-    background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
-    padding: 15px 30px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, rgba(26,26,46,0.85) 0%, rgba(15,52,96,0.85) 100%);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    padding: 14px 30px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.25);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     position: sticky;
     top: 0;
     z-index: 1000;
     width: 100%;
   }
-  
+
   .nav-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -43,20 +46,53 @@
     flex-wrap: wrap;
     gap: 15px;
   }
-  
+
   .nav-logo {
     color: white;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.2s ease;
   }
-  
+
+  .nav-logo:hover {
+    opacity: 0.85;
+  }
+
   .nav-links {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    align-items: center;
   }
-  
+
+  .nav-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.75);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 9px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.05);
+    transition: all 0.25s ease;
+    white-space: nowrap;
+  }
+
+  .nav-home-link:hover {
+    color: #1a1a2e;
+    background: #f39c12;
+    border-color: #f39c12;
+    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.35);
+    transform: translateY(-1px);
+  }
+
   .nav-btn {
     padding: 10px 24px;
     background: transparent;
@@ -69,20 +105,20 @@
     transition: all 0.3s ease;
     white-space: nowrap;
   }
-  
+
   .nav-btn:hover {
     background: rgba(255,255,255,0.1);
     color: white;
     border-color: rgba(255,255,255,0.4);
   }
-  
+
   .nav-btn.active {
     background: #f39c12;
     color: #1a1a2e;
     border-color: #f39c12;
     box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
   }
-  
+
   .nav-btn.active:hover {
     background: #e67e22;
     border-color: #e67e22;
@@ -115,7 +151,19 @@
     margin-bottom: 35px;
     font-size: 16px;
   }
-  
+
+  .selected-tier-badge {
+    margin: -15px auto 30px;
+    padding: 10px 18px;
+    background: #eef0fb;
+    border: 1px solid #c7cdf0;
+    border-radius: 10px;
+    color: #1a1a2e;
+    font-size: 14px;
+    text-align: center;
+    max-width: 420px;
+  }
+
   .form-section {
     margin-bottom: 40px;
     padding-bottom: 30px;
@@ -271,6 +319,17 @@
     margin-top: 2px;
   }
   
+  .payment-notice {
+    margin-top: 30px;
+    padding: 14px 18px;
+    background: #fff8e6;
+    border: 1px solid #f3d98b;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #6b5106;
+    text-align: center;
+  }
+
   .submit-button {
     width: 100%;
     padding: 18px;
@@ -282,7 +341,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin-top: 30px;
+    margin-top: 14px;
     letter-spacing: 0.5px;
   }
   
@@ -576,14 +635,19 @@
     }
     
     .nav-logo {
-      text-align: center;
+      justify-content: center;
       font-size: 20px;
     }
-    
+
     .nav-links {
       justify-content: center;
     }
-    
+
+    .nav-home-link {
+      flex: 1;
+      justify-content: center;
+    }
+
     .nav-btn {
       padding: 8px 16px;
       font-size: 13px;

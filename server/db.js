@@ -12,6 +12,7 @@ db.exec(`
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name             TEXT,
     gender                TEXT,
+    membership_category   TEXT,
     date_of_birth         TEXT,
     phone_number          TEXT,
     whatsapp_number       TEXT,
@@ -43,8 +44,28 @@ db.exec(`
     other_category        TEXT,
     consent               INTEGER,
     additional_comments   TEXT,
+    payment_reference     TEXT,
+    membership_tier       TEXT,
     created_at            TEXT NOT NULL DEFAULT (datetime('now'))
   )
+`);
+
+// Migrations for databases created before these columns existed.
+const existingColumns = db.prepare('PRAGMA table_info(members)').all().map((c) => c.name);
+if (!existingColumns.includes('payment_reference')) {
+  db.exec('ALTER TABLE members ADD COLUMN payment_reference TEXT');
+}
+if (!existingColumns.includes('membership_tier')) {
+  db.exec('ALTER TABLE members ADD COLUMN membership_tier TEXT');
+}
+if (!existingColumns.includes('membership_category')) {
+  db.exec('ALTER TABLE members ADD COLUMN membership_category TEXT');
+}
+
+// Prevent the same Paystack payment from being used for more than one registration.
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_members_payment_reference
+  ON members(payment_reference) WHERE payment_reference IS NOT NULL
 `);
 
 module.exports = db;

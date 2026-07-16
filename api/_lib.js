@@ -1,18 +1,44 @@
 // Shared helpers for the Vercel serverless API (Turso / libSQL).
 // Files prefixed with "_" are not treated as routes by Vercel.
 const { createClient } = require('@libsql/client/web');
+const { getTier } = require('../shared/membershipTiers');
 
 const ARRAY_FIELDS = ['employment_status', 'skills', 'services_needed', 'offer_category'];
 
 const COLUMNS = [
-  'full_name', 'gender', 'date_of_birth', 'phone_number', 'whatsapp_number', 'email',
+  'full_name', 'gender', 'membership_category', 'date_of_birth', 'phone_number', 'whatsapp_number', 'email',
   'employment_status', 'profession', 'company_name', 'job_title', 'work_description',
   'owns_business', 'business_name', 'business_type', 'products_services', 'business_location',
   'business_phone', 'social_media', 'years_in_business', 'skills', 'other_skills',
   'services_needed', 'other_services_needed', 'offer_discounts', 'discount_details',
   'open_to_partnerships', 'willing_to_mentor', 'available_to_speak', 'employs_staff',
-  'offer_category', 'other_category', 'consent', 'additional_comments'
+  'offer_category', 'other_category', 'consent', 'additional_comments', 'membership_tier',
+  'payment_reference'
 ];
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+// Confirms a Paystack transaction actually succeeded, for the right amount
+// (the price of the given membership tier) and currency, before we let it
+// count as payment for a registration.
+async function verifyPaystackPayment(reference, membershipTierKey) {
+  if (!PAYSTACK_SECRET_KEY) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured on the server');
+  }
+  const expectedKobo = getTier(membershipTierKey).priceNaira * 100;
+  const response = await fetch(
+    `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+    { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` } }
+  );
+  const result = await response.json();
+  const tx = result && result.data;
+  return !!(
+    result && result.status && tx &&
+    tx.status === 'success' &&
+    tx.amount === expectedKobo &&
+    tx.currency === 'NGN'
+  );
+}
 
 let client;
 function getClient() {
@@ -36,6 +62,7 @@ async function ensureSchema(db) {
       id                    INTEGER PRIMARY KEY AUTOINCREMENT,
       full_name             TEXT,
       gender                TEXT,
+      membership_category   TEXT,
       date_of_birth         TEXT,
       phone_number          TEXT,
       whatsapp_number       TEXT,
@@ -67,9 +94,35 @@ async function ensureSchema(db) {
       other_category        TEXT,
       consent               INTEGER,
       additional_comments   TEXT,
+      payment_reference     TEXT,
+      membership_tier       TEXT,
       created_at            TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Migrations for tables created before these columns existed.
+  try {
+    await db.execute('ALTER TABLE members ADD COLUMN payment_reference TEXT');
+  } catch {
+    // Column already exists — ignore.
+  }
+  try {
+    await db.execute('ALTER TABLE members ADD COLUMN membership_tier TEXT');
+  } catch {
+    // Column already exists — ignore.
+  }
+  try {
+    await db.execute('ALTER TABLE members ADD COLUMN membership_category TEXT');
+  } catch {
+    // Column already exists — ignore.
+  }
+
+  // Prevent the same Paystack payment from being used for more than one registration.
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_members_payment_reference
+    ON members(payment_reference) WHERE payment_reference IS NOT NULL
+  `);
+
   schemaReady = true;
 }
 
@@ -110,5 +163,6 @@ function parseBody(req) {
 }
 
 module.exports = {
-  ARRAY_FIELDS, COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody
+  ARRAY_FIELDS, COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody,
+  verifyPaystackPayment
 };

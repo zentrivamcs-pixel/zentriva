@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Scoped to these root classes so Tailwind's utilities never leak onto the
+   plain-CSS pages (FormPage, AdminDashboard) that share this bundle. */
+.member-portal,
+.home-page {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Preflight is disabled, so plain anchor tags keep the browser default
+   underline unless reset here. A global reset for buttons was considered
+   too, but a class-plus-element selector here would have higher specificity
+   than a single Tailwind utility class and could silently override a
+   button's own background utility, so instead each button that needs a
+   transparent background sets bg-transparent explicitly in its component. */
+.member-portal a,
+.home-page a {
+  text-decoration: none;
+}
+
+.member-portal .material-symbols-outlined,
+.home-page .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.member-portal .bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+}
+
+.member-portal .glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(224, 227, 229, 0.5);
+}
+
+.member-portal .membership-card-gradient {
+  background: linear-gradient(128deg, #f3f8f1 0%, #eaf2e7 58%, #dcebd8 100%);
+}
+
+@keyframes zentriva-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.member-portal .shimmer-effect {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: zentriva-shimmer 3s infinite;
+}
+
+@keyframes zentriva-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.member-portal .animate-fade-in-up,
+.home-page .animate-fade-in-up {
+  animation: zentriva-fade-in-up 0.5s ease both;
+}
+
+/* Membership ID card flip (front/back faces) */
+.member-portal .flip-scene {
+  perspective: 1600px;
+}
+
+.member-portal .flipper {
+  transition: transform 0.7s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-portal .flipper {
+    transition: none;
+  }
+}
+
+/* Printing can't rely on the 3D flip state — both faces need to be visible
+   and stacked in normal document flow so a single print job captures both
+   sides of the card. */
+@media print {
+  .member-portal .flip-scene {
+    perspective: none;
+    height: auto !important;
+  }
+
+  .member-portal .flipper {
+    transform: none !important;
+    transition: none;
+  }
+
+  .member-portal .flip-face {
+    position: static;
+    backface-visibility: visible !important;
+    -webkit-backface-visibility: visible !important;
+    transform: none !important;
+    margin-bottom: 24px;
+    page-break-inside: avoid;
+  }
+}

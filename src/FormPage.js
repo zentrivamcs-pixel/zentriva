@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { getTier } from './shared/membershipTiers';
 
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
+
+// Paystack public key (set in .env.local). The registration fee is driven by
+// the ?tier= query param (set when arriving from a membership tier CTA).
+const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
 
 const initialFormData = {
   // Personal Information
   fullName: '',
   gender: '',
+  membershipCategory: '',
   dateOfBirth: '',
   phoneNumber: '',
   whatsappNumber: '',
@@ -59,6 +66,10 @@ const initialFormData = {
 };
 
 function FormPage() {
+  const [searchParams] = useSearchParams();
+  const tier = getTier(searchParams.get('tier'));
+  const REGISTRATION_FEE_NAIRA = tier.priceNaira;
+
   const [formData, setFormData] = useState(initialFormData);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -81,15 +92,12 @@ function FormPage() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    try {
-      // Prepare data for the API (snake_case columns)
-      const memberData = {
+  // Prepare data for the API (snake_case columns)
+  const buildMemberData = (paymentReference) => {
+    return {
         full_name: formData.fullName,
         gender: formData.gender,
+        membership_category: formData.membershipCategory,
         date_of_birth: formData.dateOfBirth || null,
         phone_number: formData.phoneNumber,
         whatsapp_number: formData.whatsappNumber || null,
@@ -120,13 +128,19 @@ function FormPage() {
         offer_category: formData.offerCategory || [],
         other_category: formData.otherCategory || null,
         consent: formData.consent || false,
-        additional_comments: formData.additionalComments || null
+        additional_comments: formData.additionalComments || null,
+        membership_tier: tier.key,
+        payment_reference: paymentReference
       };
+  };
 
+  // Saves the submission — only reached after Paystack confirms payment.
+  const submitMember = async (paymentReference) => {
+    try {
       const response = await fetch('/api/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(memberData)
+        body: JSON.stringify(buildMemberData(paymentReference))
       });
 
       if (!response.ok) {
@@ -140,10 +154,40 @@ function FormPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert(`❌ Error: ${error.message}`);
+      alert(
+        `❌ Error: ${error.message}\n\nYour payment of ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} was received — ` +
+        `please contact us with your payment reference (${paymentReference}) so we can complete your registration.`
+      );
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Triggers the Paystack checkout; the form is only saved once payment succeeds.
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!PAYSTACK_PUBLIC_KEY || !window.PaystackPop) {
+      alert('❌ Payment could not be loaded. Please check your connection and try again, or contact the administrator.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    const handler = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: formData.email,
+      amount: REGISTRATION_FEE_NAIRA * 100, // Paystack expects kobo.
+      currency: 'NGN',
+      metadata: { full_name: formData.fullName, phone_number: formData.phoneNumber, membership_tier: tier.key },
+      callback: (response) => {
+        submitMember(response.reference);
+      },
+      onClose: () => {
+        setSubmitting(false);
+      }
+    });
+    handler.openIframe();
   };
 
   if (submitted) {
@@ -189,6 +233,10 @@ function FormPage() {
       <h1>🏛️ Church Business & Professional Directory</h1>
       <p className="subtitle">Help us build a community of support and collaboration</p>
 
+      <p className="selected-tier-badge">
+        Selected Plan: <strong>{tier.name}</strong> — ₦{REGISTRATION_FEE_NAIRA.toLocaleString()}/year
+      </p>
+
       <form onSubmit={handleSubmit}>
 
         {/* SECTION 1: Personal Information */}
@@ -230,6 +278,33 @@ function FormPage() {
                   onChange={handleChange}
                 />
                 Female
+              </label>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Membership Category *</label>
+            <div className="radio-group">
+              <label>
+                <input
+                  type="radio"
+                  name="membershipCategory"
+                  value="Executive Member"
+                  checked={formData.membershipCategory === 'Executive Member'}
+                  onChange={handleChange}
+                  required
+                />
+                Executive Member
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="membershipCategory"
+                  value="Non-Executive Member"
+                  checked={formData.membershipCategory === 'Non-Executive Member'}
+                  onChange={handleChange}
+                />
+                Non-Executive Member
               </label>
             </div>
           </div>
@@ -778,8 +853,13 @@ function FormPage() {
           </div>
         </div>
 
+        <p className="payment-notice">
+          💳 Your {tier.name} tier registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
+          collected via Paystack before your application is submitted.
+        </p>
+
         <button type="submit" className="submit-button" disabled={submitting}>
-          {submitting ? 'Submitting...' : '📤 Submit Application'}
+          {submitting ? 'Processing…' : `📤 Pay ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} & Submit`}
         </button>
       </form>
     </div>

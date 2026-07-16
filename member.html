@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Zentriva Member Portal</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#f7f9fb",
+                    "surface-container-low": "#f2f4f6",
+                    "on-error-container": "#93000a",
+                    "outline": "#76777d",
+                    "surface": "#f7f9fb",
+                    "surface-variant": "#e0e3e5",
+                    "primary": "#000000",
+                    "on-tertiary-fixed": "#002113",
+                    "surface-tint": "#565e74",
+                    "primary-container": "#131b2e",
+                    "on-secondary-fixed": "#0b1c30",
+                    "surface-bright": "#f7f9fb",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "error-container": "#ffdad6",
+                    "inverse-primary": "#bec6e0",
+                    "inverse-surface": "#2d3133",
+                    "surface-container-high": "#e6e8ea",
+                    "on-secondary-container": "#54647a",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "on-tertiary-container": "#009668",
+                    "surface-container": "#eceef0",
+                    "secondary-container": "#d0e1fb",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-container": "#002113",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed": "#131b2e",
+                    "on-background": "#191c1e",
+                    "secondary-fixed": "#d3e4fe",
+                    "tertiary": "#000000",
+                    "on-secondary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "on-surface": "#191c1e",
+                    "secondary": "#505f76",
+                    "on-primary-container": "#7c839b",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed": "#6ffbbe",
+                    "surface-dim": "#d8dadc",
+                    "primary-fixed-dim": "#bec6e0",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "on-surface-variant": "#45464d",
+                    "primary-fixed": "#dae2fd",
+                    "outline-variant": "#c6c6cd",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "margin-desktop": "40px",
+                    "gutter": "24px",
+                    "container-max": "1280px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(224, 227, 229, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex">
+<!-- SideNavBar Component -->
+<aside class="hidden md:flex flex-col h-screen sticky top-0 p-gutter bg-primary-container dark:bg-primary-container text-on-primary-container dark:text-on-primary-container docked h-full left-0 w-64 shadow-md z-30">
+<div class="flex items-center gap-3 mb-10">
+<span class="inline-flex items-center justify-center bg-white rounded-lg p-1 h-10 w-10 flex-shrink-0"><img src="public/logo-zentriva.jpeg" alt="Zentriva" class="w-full h-full object-cover rounded-md"></span>
+<div class="min-w-0">
+<h1 class="font-label-md text-label-md font-bold leading-tight text-on-primary-container whitespace-nowrap">Zentriva Portal</h1>
+<p class="font-label-sm text-label-sm opacity-70 mt-1">Premium Membership</p>
+</div>
+</div>
+<nav class="flex-grow space-y-2">
+<!-- Active: Overview -->
+<a class="flex items-center gap-3 px-4 py-3 text-primary bg-surface-container-highest rounded-lg font-bold transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+<span class="font-label-md text-label-md">Membership ID</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-md text-label-md">Profile Info</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+<span class="font-label-md text-label-md">Security</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-md text-label-md">billing</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-on-primary-container/10 pt-6 space-y-2">
+<button class="w-full py-3 px-4 bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-lg mb-4 hover:opacity-90 transition-opacity">
+                Upgrade Tier
+            </button>
+<a class="flex items-center gap-3 px-4 py-2 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<div class="flex-1 flex flex-col min-w-0">
+<!-- TopNavBar Component -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest border-b border-outline-variant dark:border-outline-variant shadow-sm docked full-width top-0 z-20 sticky">
+<div class="flex justify-between items-center px-margin-desktop w-full max-w-container-max mx-auto h-16">
+<div class="flex items-center gap-8">
+<span class="font-display-lg text-display-lg font-bold text-primary dark:text-primary md:hidden">Z</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-label-md text-label-md" href="#">Dashboard</a>
+<a class="text-secondary dark:text-secondary hover:text-primary transition-colors duration-200 font-label-md text-label-md" href="#">Members</a>
+<a class="text-secondary dark:text-secondary hover:text-primary transition-colors duration-200 font-label-md text-label-md" href="#">Benefits</a>
+<a class="text-secondary dark:text-secondary hover:text-primary transition-colors duration-200 font-label-md text-label-md" href="#">Events</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden lg:flex items-center bg-surface-container rounded-full px-4 py-1.5 border border-outline-variant">
+<span class="material-symbols-outlined text-secondary text-[20px]" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md text-on-surface w-48" placeholder="Search portal..." type="text"/>
+</div>
+<div class="flex gap-2">
+<button class="p-2 text-secondary hover:text-primary transition-colors cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:text-primary transition-colors cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="A professional headshot of a premium member in high-resolution photography, wearing contemporary business attire. The lighting is soft and focused, set against a clean, architectural background that emphasizes corporate modernism and professional reliability. The aesthetic is bright and sophisticated, perfectly matching the light-mode UI system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzvG0A9bGbinhJ7vFRBQFJQTZ6tHdnM6fdmGWaZbEv-lAczS1iL5XY5s0mBOVRW1jnUTQJjTIJX6qYKAFaQBkGlcuwYdQ_wWbxg09x4N7HC6WyWVeRFOfNBefMrHkwIcLONljC3Z0nDtZPCdSZ9DKmhZyVOu7rL275cZr7JQSZHj_ojqzV7GE1SywMfx1lEP4eUopYyd3c_UWDBq_xlD2S-z0sV3ZD7gO5nc6jAeUsmhxtB4Q4gL2u"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow p-margin-mobile md:p-margin-desktop max-w-container-max mx-auto w-full">
+<!-- Welcome Header -->
+<section class="mb-10">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary">Welcome back, Alexander</h2>
+<p class="font-body-lg text-body-lg text-secondary mt-1">Your membership is active and secure. Here is your daily overview.</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-primary text-on-primary px-6 py-3 font-label-md text-label-md rounded shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="add">add</span>
+                            Register for Event
+                        </button>
+</div>
+</div>
+</section>
+<!-- Bento Grid Dashboard -->
+<div class="bento-grid">
+<!-- Membership Status Card -->
+<div class="col-span-12 lg:col-span-8 glass-card rounded-xl p-8 shadow-sm flex flex-col md:flex-row gap-8 items-center overflow-hidden relative">
+<div class="absolute top-0 right-0 w-64 h-full opacity-10 pointer-events-none">
+
+</div>
+<div class="flex-shrink-0 h-32 w-32 rounded-full border-4 border-surface-container-high p-1">
+<img class="h-full w-full rounded-full object-cover" data-alt="A macro close-up of an elegant, high-tech metallic membership seal. The surface features intricate geometric laser-engraved patterns that reflect a cool, professional spectrum of navy and silver. The lighting is crisp, highlighting the clean lines and industrial-grade precision of the material, symbolizing systematic trust and premium access." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoo064MoepFDHSiOJAhehjCbdlbT-L99Oij34DPM5cksJdRlkETfm8fv2zIvr-e0-7WWw1etmZCwAIwgaq8m7W1jXkCxosGS9da1y0GN_x_vwXqw9Bky_3V9zv8WseZZpwqin_ldFffRmkvlTwn0bsk_gjvPL5xiEVl8uijqLEo2yyxeQ7qy4gf2dAu_GS-CK_M-glgpa7fSu3a3QgmuL1ImZlGUgyMcaPMBTALezCWukmNoo3rYmO"/>
+</div>
+<div class="flex-grow">
+<div class="inline-flex items-center px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-label-sm font-label-sm mb-4">
+                            ACTIVE STATUS
+                        </div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Premium Member</h3>
+<p class="font-body-md text-body-md text-secondary mb-6 max-w-lg">You are currently at the Elite Tier. You have access to all exclusive benefits, including 24/7 concierge support and priority booking for all Zentriva events.</p>
+<div class="flex gap-8">
+<div>
+<p class="text-label-sm font-label-sm text-outline uppercase tracking-wider">Member Since</p>
+<p class="font-headline-md text-headline-md text-primary">2021</p>
+</div>
+<div>
+<p class="text-label-sm font-label-sm text-outline uppercase tracking-wider">Credits</p>
+<p class="font-headline-md text-headline-md text-primary">1,240</p>
+</div>
+<div>
+<p class="text-label-sm font-label-sm text-outline uppercase tracking-wider">Next Renewal</p>
+<p class="font-headline-md text-headline-md text-primary">Dec 12</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Digital ID Card -->
+<div class="col-span-12 lg:col-span-4 bg-primary-container text-on-primary-container rounded-xl p-8 shadow-md flex flex-col justify-between overflow-hidden relative">
+<div class="absolute -right-12 -bottom-12 w-48 h-48 border-[12px] border-on-primary-container opacity-10 rounded-full"></div>
+<div>
+<div class="flex justify-between items-start mb-8">
+<h3 class="font-headline-md text-headline-md">Zentriva ID</h3>
+<span class="material-symbols-outlined text-[32px]" data-icon="contactless">contactless</span>
+</div>
+<div class="space-y-4">
+<div class="h-40 bg-surface-container-lowest/10 rounded flex items-center justify-center border border-on-primary-container/20">
+<img class="h-24 w-24" data-alt="A clean, minimalist QR code rendered in high-contrast black and white. The code is centered on a subtly textured white surface that suggests high-quality matte paper. The lighting is even and bright, emphasizing clarity and technological precision for secure scanning within a modern membership portal environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6z0Dy9GY6tp198u1V5MUm_uYlpbqd-9-UFDBEQ29gZ6MUYh6tNq-C9DFxvpF3JxiRNzlE0_-ERr1cL9JfLNPFR0DNneDU3j94vbmoheetjYDx6xXRbBNbKgCyAJlcJbwOsuzevsje1VtWGVimh_8HV71trJcaBqEVPsQovUVmAK2QhAZhu895ZpXBImkBmwkY5d8Z5okvego7mm-zl2027EixC0VHmz_cXN4ONjhnbcR7ohjQLVGv"/>
+</div>
+<p class="font-label-md text-label-md tracking-widest opacity-60">ZNTR-8829-XL-2024</p>
+</div>
+</div>
+<button class="mt-6 w-full py-3 border border-on-primary-container/40 rounded-lg font-label-md text-label-md hover:bg-on-primary-container/10 transition-colors">
+                        Add to Apple Wallet
+                    </button>
+</div>
+<!-- Quick Benefits -->
+<div class="col-span-12 lg:col-span-7 space-y-6">
+<h3 class="font-headline-md text-headline-md text-primary">Quick Benefits</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="p-6 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+<span class="material-symbols-outlined text-primary mb-4 block" data-icon="airport_shuttle">airport_shuttle</span>
+<h4 class="font-label-md text-label-md text-primary mb-1">Airport Transfers</h4>
+<p class="font-label-sm text-label-sm text-secondary">Unlimited premium sedan pickups.</p>
+</div>
+<div class="p-6 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+<span class="material-symbols-outlined text-primary mb-4 block" data-icon="concierge">concierge</span>
+<h4 class="font-label-md text-label-md text-primary mb-1">Priority Support</h4>
+<p class="font-label-sm text-label-sm text-secondary">Direct line to a dedicated manager.</p>
+</div>
+<div class="p-6 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+<span class="material-symbols-outlined text-primary mb-4 block" data-icon="fitness_center">fitness_center</span>
+<h4 class="font-label-md text-label-md text-primary mb-1">Global Gym Access</h4>
+<p class="font-label-sm text-label-sm text-secondary">Partners in over 40 countries.</p>
+</div>
+<div class="p-6 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+<span class="material-symbols-outlined text-primary mb-4 block" data-icon="restaurant">restaurant</span>
+<h4 class="font-label-md text-label-md text-primary mb-1">Private Dining</h4>
+<p class="font-label-sm text-label-sm text-secondary">Reservations at Michelin partners.</p>
+</div>
+</div>
+</div>
+<!-- Activity / Events -->
+<div class="col-span-12 lg:col-span-5 bg-surface-container-low rounded-xl p-8 border border-outline-variant">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-headline-md text-primary">Recent Activity</h3>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">View All</a>
+</div>
+<div class="space-y-6">
+<!-- Activity Item -->
+<div class="flex gap-4">
+<div class="h-10 w-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-secondary-container text-[20px]" data-icon="event_available">event_available</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-primary">Registered for "Winter Gala 2024"</p>
+<p class="font-label-sm text-label-sm text-secondary">2 hours ago • New York, NY</p>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="flex gap-4">
+<div class="h-10 w-10 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-tertiary-container text-[20px]" data-icon="payments">payments</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-primary">Monthly Dues Processed</p>
+<p class="font-label-sm text-label-sm text-secondary">Yesterday • Billing</p>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="flex gap-4">
+<div class="h-10 w-10 rounded-full bg-surface-container-highest flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]" data-icon="support_agent">support_agent</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-primary">Concierge Request Fulfilled</p>
+<p class="font-label-sm text-label-sm text-secondary">Oct 24 • Travel</p>
+</div>
+</div>
+<!-- Upcoming Event -->
+<div class="mt-8 pt-8 border-t border-outline-variant">
+<h4 class="font-label-sm text-label-sm text-outline uppercase tracking-wider mb-4">Upcoming Event</h4>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant flex items-center gap-4">
+<div class="text-center px-3 border-r border-outline-variant">
+<p class="text-headline-md text-primary font-bold">12</p>
+<p class="text-label-sm text-secondary font-label-sm">DEC</p>
+</div>
+<div>
+<p class="font-label-md text-label-md text-primary">Annual Founders Circle</p>
+<p class="font-label-sm text-label-sm text-secondary">Metropolitan Lounge • 7:00 PM</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Component -->
+<footer class="bg-surface-container-low dark:bg-surface-container-low border-t border-outline-variant w-full py-6 px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-4 z-10">
+<span class="flex items-center gap-2 font-label-md text-label-md font-bold text-primary"><img src="public/logo-zentriva.jpeg" alt="Zentriva" class="h-7 w-7 object-cover rounded-lg">Zentriva</span>
+<p class="font-label-sm text-label-sm text-secondary dark:text-secondary text-center">© 2024 Zentriva Membership Systems. All rights reserved.</p>
+<div class="flex gap-6">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Contact Support</a>
+</div>
+</footer>
+</div>
+<!-- Mobile Bottom Navigation Shell -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant flex justify-around items-center h-16 z-40">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-label-sm">Overview</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+<span class="text-[10px] font-label-sm">ID</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="benefits">star</span>
+<span class="text-[10px] font-label-sm">Benefits</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-label-sm">Profile</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for cards
+        document.querySelectorAll('.glass-card, .col-span-12.lg\\:col-span-4, .p-6.bg-surface-container-lowest').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.transition = 'all 0.3s ease';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Simple Fade-in effect for dashboard elements
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.bento-grid > div');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(10px)';
+                el.style.transition = 'all 0.5s ease ' + (index * 0.1) + 's';
+                
+                setTimeout(() => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, 100);
+            });
+        });
+    </script>
+</body></html>

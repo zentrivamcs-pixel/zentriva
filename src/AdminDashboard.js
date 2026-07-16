@@ -33,7 +33,7 @@ const countWhere = (members, field, value) =>
 const searchableText = (member) => [
   member.full_name, member.email, member.phone_number, member.whatsapp_number,
   member.profession, member.business_name, member.business_type, member.company_name,
-  member.job_title, member.business_location,
+  member.job_title, member.business_location, member.membership_tier, member.membership_category,
   ...(member.skills || []), ...(member.offer_category || [])
 ].filter(Boolean).join(' ').toLowerCase();
 
@@ -139,6 +139,8 @@ const DirectoryPDF = ({ data }) => {
 
 const EDIT_FIELDS = [
   { name: 'full_name', label: 'Full Name', type: 'text' },
+  { name: 'membership_tier', label: 'Membership Tier', type: 'text' },
+  { name: 'membership_category', label: 'Membership Category', type: 'text' },
   { name: 'gender', label: 'Gender', type: 'text' },
   { name: 'date_of_birth', label: 'Date of Birth', type: 'date' },
   { name: 'phone_number', label: 'Phone Number', type: 'text' },
@@ -162,8 +164,10 @@ const EDIT_FIELDS = [
 const DETAIL_SECTIONS = [
   {
     title: 'Personal', rows: [
-      ['Full Name', 'full_name'], ['Gender', 'gender'], ['Date of Birth', 'date_of_birth'],
-      ['Phone', 'phone_number'], ['WhatsApp', 'whatsapp_number'], ['Email', 'email']
+      ['Full Name', 'full_name'], ['Membership Tier', 'membership_tier'],
+      ['Membership Category', 'membership_category'], ['Gender', 'gender'],
+      ['Date of Birth', 'date_of_birth'], ['Phone', 'phone_number'], ['WhatsApp', 'whatsapp_number'],
+      ['Email', 'email']
     ]
   },
   {
@@ -480,6 +484,8 @@ function AdminDashboard() {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Tier</th>
+                  <th>Category</th>
                   <th>Gender</th>
                   <th>Profession / Business</th>
                   <th>Contact</th>
@@ -491,7 +497,7 @@ function AdminDashboard() {
               <tbody>
                 {filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="table-empty">
+                    <td colSpan="9" className="table-empty">
                       {hasFilters ? 'No members match your filters.' : 'No members registered yet.'}
                     </td>
                   </tr>
@@ -499,6 +505,8 @@ function AdminDashboard() {
                   filteredMembers.map((m) => (
                     <tr key={m.id}>
                       <td className="cell-name">{m.full_name}</td>
+                      <td>{m.membership_tier ? m.membership_tier[0].toUpperCase() + m.membership_tier.slice(1) : '—'}</td>
+                      <td>{m.membership_category || '—'}</td>
                       <td>{m.gender || '—'}</td>
                       <td>
                         <div>{m.profession || '—'}</div>
