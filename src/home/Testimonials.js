@@ -6,13 +6,13 @@ function Testimonials() {
     <section className="py-24 bg-white" id="testimonials">
       <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
         <div className="flex flex-col md:flex-row gap-16 items-center">
-          <div className="w-full md:w-1/3" id="about">
+          <div className="w-full md:w-1/3">
             <h2 className="font-headline-lg text-headline-lg text-primary mb-6">
-              Trusted by World-Class Organizations
+              What Our Members Say
             </h2>
             <p className="text-secondary font-body-md mb-8">
-              Our members represent the pinnacle of leadership across technology, finance, and the
-              arts.
+              Members build real skills and real opportunity across business, technology, and
+              creative fields.
             </p>
             <div className="grid grid-cols-2 gap-8 opacity-40">
               <div className="h-8 bg-secondary/20 rounded" />

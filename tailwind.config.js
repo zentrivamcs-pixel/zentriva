@@ -5,11 +5,11 @@ module.exports = {
     './src/member/**/*.{js,jsx}',
     './src/home/**/*.{js,jsx}',
     './src/shared/**/*.{js,jsx}',
+    './src/admin/**/*.{js,jsx}',
   ],
-  // Existing pages (FormPage, AdminDashboard, AdminGate) use plain CSS in
-  // App.css. Preflight is disabled so Tailwind's base reset never touches
-  // their markup — Tailwind only applies to files under src/member and
-  // src/home.
+  // FormPage still uses plain CSS in App.css. Preflight is disabled so
+  // Tailwind's base reset never touches its markup — Tailwind only applies
+  // to files under src/member, src/home, and src/admin.
   corePlugins: {
     preflight: false,
   },

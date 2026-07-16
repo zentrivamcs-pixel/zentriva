@@ -2,7 +2,9 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import HomePage from './home/HomePage';
 import FormPage from './FormPage';
-import AdminGate from './AdminGate';
+import AdminGate from './admin/AdminGate';
+import AdminOverview from './admin/AdminOverview';
+import AdminMembers from './admin/AdminMembers';
 import MemberLayout from './member/MemberLayout';
 import Overview from './member/Overview';
 import MembershipId from './member/MembershipId';
@@ -14,9 +16,12 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  // The homepage and member portal ship their own header/nav, so the plain
-  // public nav bar is only needed on the pages that don't have one.
-  const hasOwnNav = location.pathname === '/' || location.pathname.startsWith('/member');
+  // The homepage, member portal, and admin CMS ship their own header/nav,
+  // so the plain public nav bar is only needed on the pages that don't
+  // have one.
+  const hasOwnNav = location.pathname === '/'
+    || location.pathname.startsWith('/member')
+    || location.pathname.startsWith('/admin');
 
   // React Router doesn't reset scroll position on navigation (it's an SPA).
   // Reset on path changes only, so in-page anchors (e.g. "#benefits") can
@@ -47,7 +52,14 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/register" element={<FormPage />} />
-        <Route path="/admin" element={<AdminGate />} />
+
+        <Route path="/admin" element={<AdminGate />}>
+          <Route index element={<AdminOverview />} />
+          <Route path="members" element={<AdminMembers />} />
+          <Route path="finances" element={<ComingSoon title="Finances" icon="account_balance" />} />
+          <Route path="transactions" element={<ComingSoon title="Transactions" icon="receipt_long" />} />
+          <Route path="settings" element={<ComingSoon title="Settings" icon="settings" />} />
+        </Route>
 
         <Route path="/member" element={<MemberLayout />}>
           <Route index element={<Overview />} />

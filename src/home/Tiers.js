@@ -9,7 +9,8 @@ function Tiers() {
         <div className="text-center mb-16">
           <h2 className="font-headline-lg text-headline-lg text-primary mb-4">Membership Tiers</h2>
           <p className="font-body-md text-body-md text-secondary">
-            Select the level of access that aligns with your professional lifestyle.
+            Select the level of access that matches where you are in your training and growth
+            journey.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

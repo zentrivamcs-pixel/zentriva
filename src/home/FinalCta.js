@@ -6,11 +6,11 @@ function FinalCta() {
     <section className="relative py-32 bg-primary overflow-hidden">
       <div className="relative z-10 max-w-container-max mx-auto px-margin-mobile text-center">
         <h2 className="text-white font-display-lg text-display-lg mb-8">
-          Your Premium Journey Starts Here
+          Your Growth Journey Starts Here
         </h2>
         <p className="text-on-primary-container font-body-lg text-body-lg mb-12 max-w-2xl mx-auto">
-          Join the ranks of the elite and experience membership as it was meant to be: seamless,
-          secure, and extraordinary.
+          Join a community of members building real skills, real ventures, and real
+          opportunity — together.
         </p>
         <Link
           to="/register"

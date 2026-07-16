@@ -77,6 +77,32 @@
   animation: zentriva-fade-in-up 0.5s ease both;
 }
 
+/* Events marquee — track holds two back-to-back copies of the row, so
+   sliding from 0 to -50% (one full copy's width) loops seamlessly. */
+@keyframes zentriva-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.home-page .animate-marquee-fast {
+  animation: zentriva-marquee 32s linear infinite;
+}
+
+.home-page .animate-marquee-slow {
+  animation: zentriva-marquee 48s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-page .animate-marquee-fast,
+  .home-page .animate-marquee-slow {
+    animation: none;
+  }
+}
+
 /* Membership ID card flip (front/back faces) */
 .member-portal .flip-scene {
   perspective: 1600px;

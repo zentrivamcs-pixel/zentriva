@@ -9,6 +9,27 @@ const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
 // the ?tier= query param (set when arriving from a membership tier CTA).
 const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
 
+// Date of Birth is collected as three plain <select>s instead of a native
+// <input type="date"> — the browser's built-in date picker popup can't be
+// restyled to match the rest of the form, so it looks jarring next to it.
+const DOB_MONTHS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+const DOB_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+const DOB_CURRENT_YEAR = new Date().getFullYear();
+const DOB_YEARS = Array.from({ length: 100 }, (_, i) => String(DOB_CURRENT_YEAR - 13 - i));
+
 const initialFormData = {
   // Personal Information
   fullName: '',
@@ -54,7 +75,7 @@ const initialFormData = {
   // Employment Opportunities
   employsStaff: '',
 
-  // Church Business Network Category
+  // Zentriva Business Network Category
   offerCategory: [],
   otherCategory: '',
 
@@ -71,8 +92,19 @@ function FormPage() {
   const REGISTRATION_FEE_NAIRA = tier.priceNaira;
 
   const [formData, setFormData] = useState(initialFormData);
+  const [dobParts, setDobParts] = useState({ day: '', month: '', year: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const handleDobPartChange = (part) => (e) => {
+    const nextParts = { ...dobParts, [part]: e.target.value };
+    setDobParts(nextParts);
+    const { day, month, year } = nextParts;
+    setFormData((prevData) => ({
+      ...prevData,
+      dateOfBirth: day && month && year ? `${year}-${month}-${day}` : '',
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -230,7 +262,7 @@ function FormPage() {
 
   return (
     <div className="form-container">
-      <h1>🏛️ Church Business & Professional Directory</h1>
+      <h1>🏛️ Zentriva Business & Professional Directory</h1>
       <p className="subtitle">Help us build a community of support and collaboration</p>
 
       <p className="selected-tier-badge">
@@ -311,12 +343,38 @@ function FormPage() {
 
           <div className="form-group">
             <label>Date of Birth</label>
-            <input
-              type="date"
-              name="dateOfBirth"
-              value={formData.dateOfBirth}
-              onChange={handleChange}
-            />
+            <div className="dob-row">
+              <select
+                aria-label="Day"
+                value={dobParts.day}
+                onChange={handleDobPartChange('day')}
+              >
+                <option value="">Day</option>
+                {DOB_DAYS.map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Month"
+                value={dobParts.month}
+                onChange={handleDobPartChange('month')}
+              >
+                <option value="">Month</option>
+                {DOB_MONTHS.map((month) => (
+                  <option key={month.value} value={month.value}>{month.label}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Year"
+                value={dobParts.year}
+                onChange={handleDobPartChange('year')}
+              >
+                <option value="">Year</option>
+                {DOB_YEARS.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="form-row">
@@ -634,7 +692,7 @@ function FormPage() {
           <h2>🤝 Referral & Collaboration</h2>
 
           <div className="form-group">
-            <label>Are you willing to offer discounts or special packages to church members?</label>
+            <label>Are you willing to offer discounts or special packages to Zentriva members?</label>
             <div className="radio-group">
               <label>
                 <input
@@ -673,7 +731,7 @@ function FormPage() {
           )}
 
           <div className="form-group">
-            <label>Are you open to partnerships with other church members?</label>
+            <label>Are you open to partnerships with other Zentriva members?</label>
             <div className="radio-group">
               <label>
                 <input
@@ -782,12 +840,12 @@ function FormPage() {
           </div>
         </div>
 
-        {/* SECTION 8: Church Business Network */}
+        {/* SECTION 8: Zentriva Business Network */}
         <div className="form-section">
-          <h2>⛪ Church Business Network</h2>
+          <h2>🌐 Zentriva Business Network</h2>
 
           <div className="form-group">
-            <label>Which category best describes what you can offer to church members? (Check all that apply)</label>
+            <label>Which category best describes what you can offer to Zentriva members? (Check all that apply)</label>
             <div className="checkbox-group">
               {[
                 'Products', 'Professional Services', 'Skilled Trade Services',
@@ -833,7 +891,7 @@ function FormPage() {
                 onChange={handleChange}
                 required
               />
-              I consent to the use of the information provided in this form for the creation of a Church Business and Professional Directory, which may be shared among church members for networking, referrals, business opportunities, and community support. *
+              I consent to the use of the information provided in this form for the creation of a Zentriva Business and Professional Directory, which may be shared among Zentriva members for networking, referrals, business opportunities, and community support. *
             </label>
           </div>
         </div>

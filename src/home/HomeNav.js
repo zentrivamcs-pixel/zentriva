@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import Logo from '../shared/Logo';
 
 const NAV_LINKS = [
+  { href: '#about', label: 'About' },
   { href: '#benefits', label: 'Benefits' },
   { href: '#tiers', label: 'Tiers' },
+  { href: '#events', label: 'Events' },
   { href: '#testimonials', label: 'Testimonials' },
-  { href: '#about', label: 'About' },
 ];
 
 function HomeNav() {
