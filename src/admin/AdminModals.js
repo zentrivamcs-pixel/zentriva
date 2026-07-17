@@ -1,7 +1,7 @@
 import React from 'react';
 import { DETAIL_SECTIONS, EDIT_FIELDS, formatValue } from './adminHelpers';
 
-export function AdminViewModal({ member, onClose, onEdit }) {
+export function AdminViewModal({ member, onClose, onEdit, onResetAccount }) {
   return (
     <div className="fixed inset-0 bg-on-background/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -21,6 +21,32 @@ export function AdminViewModal({ member, onClose, onEdit }) {
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Portal account status + stopgap reset */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary">
+                {member.has_password ? 'lock' : 'lock_open'}
+              </span>
+              <div>
+                <p className="text-label-md font-bold text-on-surface">Portal Account</p>
+                <p className="text-label-sm text-on-surface-variant">
+                  {member.has_password
+                    ? 'Activated — the member can log in with their password.'
+                    : 'Not activated — the member can activate with their email and payment reference.'}
+                </p>
+              </div>
+            </div>
+            {member.has_password && (
+              <button
+                type="button"
+                onClick={onResetAccount}
+                className="px-3 py-1.5 border border-error/40 text-error rounded-lg text-label-sm hover:bg-error/10 transition-colors bg-transparent"
+              >
+                Reset account
+              </button>
+            )}
+          </div>
+
           {DETAIL_SECTIONS.map((section) => (
             <div key={section.title}>
               <h4 className="font-label-sm text-label-sm text-outline uppercase tracking-wider mb-3">

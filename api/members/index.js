@@ -1,78 +1,59 @@
 // /api/members  — GET (list all, admin only), POST (create, payment-gated)
-const {
-  COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody,
-  verifyPaystackPayment, buildMembershipId, requireAdmin,
-} = require('../_lib');
+const { repo, getReadyDb, parseBody, verifyPaystackPayment, requireAdmin, auth } = require('../_lib');
+const { validateRegistration, passwordError } = require('../../shared/validation');
+const { sendRegistrationEmail } = require('../../shared/email');
 
 module.exports = async (req, res) => {
   try {
-    const db = getClient();
-    await ensureSchema(db);
-
     if (req.method === 'GET') {
       if (!requireAdmin(req, res)) return;
-      const result = await db.execute(
-        'SELECT * FROM members ORDER BY datetime(created_at) DESC'
-      );
-      return res.status(200).json(result.rows.map(deserialize));
+      const db = await getReadyDb();
+      return res.status(200).json(await repo.listMembers(db));
     }
 
     if (req.method === 'POST') {
       const body = parseBody(req);
 
-      if (!body.payment_reference) {
-        return res.status(402).json({ error: 'Payment reference is required' });
+      // Everything written to the database goes through the validation
+      // layer: trimmed, length-capped, enum-checked, unknown fields dropped.
+      const { value, errors } = validateRegistration(body);
+      if (errors.length > 0) {
+        return res.status(400).json({ error: `Invalid registration: ${errors.join('; ')}` });
       }
 
-      const tx = await verifyPaystackPayment(body.payment_reference, body.membership_tier);
+      // The portal password is set during registration. It is hashed here
+      // and never stored or logged in plaintext. Optional server-side so a
+      // paid registration from an outdated client is never rejected after
+      // the charge — those members activate later via the claim flow.
+      let passwordHash = null;
+      if (body.password !== undefined && body.password !== '') {
+        const pwErr = passwordError(body.password);
+        if (pwErr) return res.status(400).json({ error: pwErr });
+        passwordHash = auth.hashPassword(String(body.password));
+      }
+
+      const tx = await verifyPaystackPayment(value.payment_reference, value.membership_tier);
       if (!tx) {
         return res.status(402).json({ error: 'Payment could not be verified' });
       }
 
-      const placeholders = COLUMNS.map(() => '?').join(', ');
-      const result = await db.execute({
-        sql: `INSERT INTO members (${COLUMNS.join(', ')}) VALUES (${placeholders})`,
-        args: toArgs(body)
-      });
-      const newId = Number(result.lastInsertRowid);
+      const db = await getReadyDb();
+      // Atomic: member row + membership number + password + payment record.
+      const created = await repo.createMember(db, value, tx, passwordHash);
 
-      // Assign the human-readable membership number now that the id exists.
-      const membershipId = buildMembershipId(newId, body.membership_category);
-      await db.execute({
-        sql: 'UPDATE members SET membership_id = ? WHERE id = ?',
-        args: [membershipId, newId]
-      });
+      // Membership confirmation email — awaited so the serverless function
+      // isn't frozen mid-send, but strictly best-effort: a mail failure
+      // never fails a paid registration (sendRegistrationEmail never throws).
+      await sendRegistrationEmail(created);
 
-      // Record the verified payment for the member's billing history.
-      try {
-        await db.execute({
-          sql: `INSERT INTO payments (member_id, reference, amount_kobo, currency, status, channel, description, paid_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(reference) DO UPDATE SET member_id = excluded.member_id`,
-          args: [
-            newId, tx.reference, tx.amount, tx.currency, tx.status,
-            tx.channel || null,
-            `${body.membership_tier || 'standard'} tier registration`,
-            tx.paid_at || tx.paidAt || null,
-          ]
-        });
-      } catch (payErr) {
-        // Payment history is best-effort — never fail the registration over it.
-        console.error('Failed to record payment history:', payErr);
-      }
-
-      const created = await db.execute({
-        sql: 'SELECT * FROM members WHERE id = ?',
-        args: [newId]
-      });
-      return res.status(201).json(deserialize(created.rows[0]));
+      return res.status(201).json(repo.sanitizeMember(created));
     }
 
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    if (err.message && err.message.includes('UNIQUE constraint failed')) {
-      return res.status(409).json({ error: 'This payment has already been used for a registration' });
+    if (err instanceof repo.ConflictError) {
+      return res.status(409).json({ error: err.message, code: err.code });
     }
     console.error('GET/POST /api/members error:', err);
     return res.status(500).json({ error: 'Server error' });

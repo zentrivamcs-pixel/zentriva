@@ -2,7 +2,7 @@
 // first time. Identity is proven with the email + Paystack payment reference
 // from their registration (shown on their Paystack receipt), so no email
 // service is needed.
-const { getClient, ensureSchema, parseBody, sanitizeMember, auth } = require('../_lib');
+const { repo, getReadyDb, parseBody, auth } = require('../_lib');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -11,9 +11,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const db = getClient();
-    await ensureSchema(db);
-
     const { email, payment_reference, password } = parseBody(req);
     if (!email || !payment_reference || !password) {
       return res.status(400).json({ error: 'Email, payment reference, and password are required' });
@@ -22,11 +19,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    const result = await db.execute({
-      sql: 'SELECT * FROM members WHERE lower(email) = lower(?) AND payment_reference = ?',
-      args: [String(email).trim(), String(payment_reference).trim()]
-    });
-    const member = result.rows[0];
+    const db = await getReadyDb();
+    const member = await repo.findByEmailAndReference(db, email, payment_reference);
     if (!member) {
       return res.status(404).json({ error: 'No registration matches that email and payment reference' });
     }
@@ -34,13 +28,10 @@ module.exports = async (req, res) => {
       return res.status(409).json({ error: 'This account is already claimed — use Login instead' });
     }
 
-    await db.execute({
-      sql: 'UPDATE members SET password_hash = ? WHERE id = ?',
-      args: [auth.hashPassword(String(password)), member.id]
-    });
+    const newVersion = await repo.setPassword(db, member.id, auth.hashPassword(String(password)));
 
-    const token = auth.signToken({ role: 'member', sub: Number(member.id) }, auth.MEMBER_TOKEN_TTL);
-    return res.status(200).json({ token, member: sanitizeMember(member) });
+    const token = auth.memberToken(member.id, newVersion);
+    return res.status(200).json({ token, member: repo.sanitizeMember(member) });
   } catch (err) {
     console.error('POST /api/auth/claim error:', err);
     return res.status(500).json({ error: 'Server error' });

@@ -77,6 +77,30 @@ function getMemberId(req) {
   return payload && payload.role === 'member' ? payload.sub : null;
 }
 
+// Returns the full member token payload ({ sub, v, exp }), or null. Used
+// where the token_version must be checked against the database.
+function getMemberPayload(req) {
+  const payload = getAuthPayload(req);
+  return payload && payload.role === 'member' ? payload : null;
+}
+
+// Mints a member session token bound to the member's current token_version;
+// bumping the version (password change/reset) invalidates it.
+function memberToken(memberId, tokenVersion) {
+  return signToken(
+    { role: 'member', sub: Number(memberId), v: Number(tokenVersion || 0) },
+    MEMBER_TOKEN_TTL
+  );
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function randomToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
 // Constant-time string comparison for the admin password check.
 function safeEqual(a, b) {
   const ba = Buffer.from(String(a));
@@ -95,6 +119,10 @@ module.exports = {
   getAuthPayload,
   isAdmin,
   getMemberId,
+  getMemberPayload,
+  memberToken,
+  sha256,
+  randomToken,
   safeEqual,
   ADMIN_TOKEN_TTL,
   MEMBER_TOKEN_TTL,

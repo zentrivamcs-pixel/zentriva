@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
+import { publicApi } from './shared/api';
 
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
@@ -78,6 +79,10 @@ const initialFormData = {
   // Zentriva Business Network Category
   offerCategory: [],
   otherCategory: '',
+
+  // Member portal account
+  password: '',
+  confirmPassword: '',
 
   // Consent
   consent: false,
@@ -184,7 +189,10 @@ function FormPage() {
         consent: formData.consent || false,
         additional_comments: formData.additionalComments || null,
         membership_tier: tier.key,
-        payment_reference: paymentReference
+        payment_reference: paymentReference,
+        // Sent over HTTPS and hashed server-side before storage — the
+        // plaintext is never persisted anywhere.
+        password: formData.password
       };
   };
 
@@ -236,13 +244,23 @@ function FormPage() {
   };
 
   // Triggers the Paystack checkout; the form is only saved once payment succeeds.
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Checkbox groups can't use the native `required` attribute (it would
     // demand every box) — enforce "at least one" here before taking payment.
     if (formData.employmentStatus.length === 0) {
       setValidationError('Please select at least one option under "Current Status" in the Employment section.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (formData.password.length < 8) {
+      setValidationError('Your portal password must be at least 8 characters (see "Member Portal Account").');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setValidationError('Your portal password and its confirmation do not match (see "Member Portal Account").');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -254,6 +272,26 @@ function FormPage() {
     }
 
     setSubmitting(true);
+
+    // One account per email — check BEFORE charging, so nobody pays only to
+    // find out their email is already registered. Fail-open on network
+    // errors: the server enforces uniqueness again at save time.
+    try {
+      const { registered } = await publicApi('/api/auth/check-email', {
+        method: 'POST',
+        body: JSON.stringify({ email: formData.email }),
+      });
+      if (registered) {
+        setSubmitting(false);
+        setValidationError(
+          'This email is already registered with Zentriva. Log in to the Member Portal instead — or contact support if you think this is a mistake.'
+        );
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+    } catch {
+      // Check unavailable — continue; the save endpoint still enforces it.
+    }
 
     const handler = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
@@ -285,9 +323,10 @@ function FormPage() {
           {lastReference && (
             <div className="reference-note">
               <p>
-                Your payment reference is <strong>{lastReference}</strong>.
-                Keep it safe — you'll use it (with your email) to activate your
-                account on the <a href="/member">Member Portal</a>.
+                Your member account is ready — <a href="/member">log in to the
+                Member Portal</a> with your email address and the password you
+                chose. Your payment reference is <strong>{lastReference}</strong>;
+                keep it for your records.
               </p>
             </div>
           )}
@@ -995,7 +1034,49 @@ function FormPage() {
           </div>
         </div>
 
-        {/* SECTION 9: Consent */}
+        {/* SECTION 9: Member Portal Account */}
+        <div className="form-section">
+          <h2>🔐 Member Portal Account</h2>
+
+          <p className="section-hint">
+            Choose a password for the Zentriva Member Portal. After payment,
+            you can log in right away with your email address and this
+            password to access your digital membership ID, the member
+            directory, and your billing history.
+          </p>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Password *</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="Minimum 8 characters"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Confirm Password *</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="Repeat your password"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 10: Consent */}
         <div className="form-section">
           <h2>📝 Consent</h2>
 
@@ -1013,7 +1094,7 @@ function FormPage() {
           </div>
         </div>
 
-        {/* SECTION 10: Additional Comments */}
+        {/* SECTION 11: Additional Comments */}
         <div className="form-section">
           <h2>💬 Additional Comments</h2>
 

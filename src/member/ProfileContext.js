@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 // Shares the member's profile photo across the portal (profile editor, the
-// membership ID card preview, and the exported badge) until real member
-// accounts/session storage exist on the backend.
+// membership ID card preview, and the exported badge). Photos are stored in
+// this browser's localStorage only — server-side avatar upload (object
+// storage + members.avatar_url) is the planned replacement.
 const ProfileContext = createContext(null);
 
 const AVATAR_STORAGE_KEY = 'zentriva_profile_avatar';

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import '../styles/tailwind.css';
 import Logo from '../shared/Logo';
 import { useMemberAuth } from './MemberAuthContext';
+import { publicApi } from '../shared/api';
 
 const inputClass =
   'w-full px-3 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:outline-none';
@@ -13,17 +14,19 @@ const labelClass = 'block text-label-sm text-on-surface-variant mb-1 mt-4';
 // from registration, then sets the member's password.
 function MemberLogin() {
   const { login, claim } = useMemberAuth();
-  const [mode, setMode] = useState('login'); // 'login' | 'claim'
+  const [mode, setMode] = useState('login'); // 'login' | 'claim' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [reference, setReference] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
   const switchMode = (next) => {
     setMode(next);
     setError('');
+    setNotice('');
     setPassword('');
     setConfirm('');
   };
@@ -31,6 +34,7 @@ function MemberLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
 
     if (mode === 'claim') {
       if (password.length < 8) {
@@ -47,11 +51,23 @@ function MemberLogin() {
     try {
       if (mode === 'login') {
         await login(email.trim(), password);
-      } else {
+      } else if (mode === 'claim') {
         await claim(email.trim(), reference.trim(), password);
+      } else {
+        const data = await publicApi('/api/auth/forgot', {
+          method: 'POST',
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        setNotice(data.message || 'If that email is registered, a reset link has been sent.');
       }
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      if (mode === 'forgot' && err.status === 503) {
+        setError(
+          'Password reset by email is not available yet. Contact support, or use "First time? Activate" with your payment reference if your account was reset.'
+        );
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setBusy(false);
     }
@@ -69,7 +85,9 @@ function MemberLogin() {
             <div>
               <h1 className="font-headline-md text-headline-md text-primary">Member Portal</h1>
               <p className="text-label-sm text-on-surface-variant">
-                {mode === 'login' ? 'Sign in to your Zentriva account' : 'Activate your member account'}
+                {mode === 'login' && 'Sign in to your Zentriva account'}
+                {mode === 'claim' && 'Activate your member account'}
+                {mode === 'forgot' && 'Reset your password'}
               </p>
             </div>
           </div>
@@ -102,8 +120,17 @@ function MemberLogin() {
 
           {mode === 'claim' && (
             <p className="text-label-sm text-on-surface-variant bg-surface-container-low rounded-lg p-3 mt-2">
-              Use the email you registered with and the Paystack payment
-              reference from your registration receipt to set your password.
+              New registrations choose a password on the sign-up form — this
+              activation step is for members who registered before portal
+              accounts existed. Use the email you registered with and the
+              Paystack payment reference from your receipt to set a password.
+            </p>
+          )}
+
+          {mode === 'forgot' && (
+            <p className="text-label-sm text-on-surface-variant bg-surface-container-low rounded-lg p-3 mt-2">
+              Enter the email you registered with and we'll send you a link to
+              choose a new password. The link is valid for 30 minutes.
             </p>
           )}
 
@@ -134,19 +161,35 @@ function MemberLogin() {
             </>
           )}
 
-          <label className={labelClass} htmlFor="member-password">
-            {mode === 'login' ? 'Password' : 'Choose a Password'}
-          </label>
-          <input
-            id="member-password"
-            type="password"
-            required
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={mode === 'login' ? 'Your password' : 'Minimum 8 characters'}
-            className={inputClass}
-          />
+          {mode !== 'forgot' && (
+            <>
+              <label className={labelClass} htmlFor="member-password">
+                {mode === 'login' ? 'Password' : 'Choose a Password'}
+              </label>
+              <input
+                id="member-password"
+                type="password"
+                required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={mode === 'login' ? 'Your password' : 'Minimum 8 characters'}
+                className={inputClass}
+              />
+            </>
+          )}
+
+          {mode === 'login' && (
+            <p className="text-right mt-2">
+              <button
+                type="button"
+                onClick={() => switchMode('forgot')}
+                className="bg-transparent text-label-sm text-primary hover:underline"
+              >
+                Forgot password?
+              </button>
+            </p>
+          )}
 
           {mode === 'claim' && (
             <>
@@ -165,14 +208,37 @@ function MemberLogin() {
           )}
 
           {error && <p className="text-error text-label-sm mt-3" role="alert">{error}</p>}
+          {notice && (
+            <p className="text-label-sm mt-3 text-on-tertiary-container bg-tertiary-container/40 rounded-lg p-3" role="status">
+              {notice}
+            </p>
+          )}
 
           <button
             type="submit"
             disabled={busy}
             className="w-full mt-6 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            {busy ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Activate Account'}
+            {busy
+              ? 'Please wait…'
+              : mode === 'login'
+                ? 'Sign In'
+                : mode === 'claim'
+                  ? 'Activate Account'
+                  : 'Send Reset Link'}
           </button>
+
+          {mode === 'forgot' && (
+            <p className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="bg-transparent text-label-sm text-primary hover:underline"
+              >
+                ← Back to login
+              </button>
+            </p>
+          )}
 
           <p className="text-label-sm text-on-surface-variant text-center mt-6">
             Not a member yet?{' '}

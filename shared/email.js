@@ -1,0 +1,131 @@
+// Transactional email via Resend's REST API (no SDK dependency). The whole
+// module is env-gated: without RESEND_API_KEY and EMAIL_FROM it quietly
+// reports itself disabled, so the app works before email is configured and
+// activates the moment the env vars are set.
+//
+// Rules for callers:
+// - sendEmail never throws — it returns { sent, error? }. Email is always
+//   best-effort; a mail failure must never fail a paid registration.
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+
+function getConfig() {
+  return {
+    apiKey: process.env.RESEND_API_KEY,
+    // e.g. "Zentriva <no-reply@zentriva.org>" — must be a Resend-verified domain.
+    from: process.env.EMAIL_FROM,
+    // Public site origin used in email links, e.g. "https://zentriva.vercel.app".
+    baseUrl: (process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  };
+}
+
+function isEmailEnabled() {
+  const { apiKey, from } = getConfig();
+  return !!(apiKey && from);
+}
+
+async function sendEmail({ to, subject, html, text }) {
+  const { apiKey, from } = getConfig();
+  if (!apiKey || !from) {
+    console.warn(`Email disabled (RESEND_API_KEY/EMAIL_FROM not set) — skipped "${subject}" to ${to}`);
+    return { sent: false, error: 'email not configured' };
+  }
+  try {
+    const response = await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: [to], subject, html, text }),
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      console.error(`Email send failed (${response.status}) for "${subject}" to ${to}: ${body}`);
+      return { sent: false, error: `HTTP ${response.status}` };
+    }
+    return { sent: true };
+  } catch (err) {
+    console.error(`Email send error for "${subject}" to ${to}:`, err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
+// --- Templates -----------------------------------------------------------------
+
+const escapeHtml = (value) =>
+  String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+
+function layout(title, bodyHtml) {
+  return `
+    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1c1c1c;">
+      <h2 style="color:#1F7A4D;margin-bottom:4px;">Zentriva Multipurpose Cooperative Society</h2>
+      <h3 style="margin-top:0;">${escapeHtml(title)}</h3>
+      ${bodyHtml}
+      <p style="color:#777;font-size:12px;margin-top:32px;border-top:1px solid #ddd;padding-top:12px;">
+        You received this email because of activity on your Zentriva membership.
+        If this wasn't you, please contact support.
+      </p>
+    </div>`;
+}
+
+// Membership confirmation, sent fire-and-forget after a registration commits.
+// (Paystack sends the payment receipt itself — this is the membership side.)
+function sendRegistrationEmail(member) {
+  const { baseUrl } = getConfig();
+  const row = (label, value) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#555;">${label}</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(value)}</td></tr>`;
+  const tier = member.membership_tier
+    ? member.membership_tier[0].toUpperCase() + member.membership_tier.slice(1)
+    : 'Standard';
+
+  return sendEmail({
+    to: member.email,
+    subject: 'Welcome to Zentriva — your membership is confirmed',
+    text:
+      `Welcome to Zentriva, ${member.full_name}!\n\n` +
+      `Membership ID: ${member.membership_id}\nTier: ${tier}\nPayment reference: ${member.payment_reference}\n\n` +
+      `Log in to the member portal: ${baseUrl}/member\n`,
+    html: layout('Your membership is confirmed 🎉', `
+      <p>Welcome, <strong>${escapeHtml(member.full_name)}</strong>! Your registration is complete.</p>
+      <table style="border-collapse:collapse;font-size:14px;">
+        ${row('Membership ID', member.membership_id)}
+        ${row('Tier', tier)}
+        ${row('Category', member.membership_category || '—')}
+        ${row('Payment reference', member.payment_reference)}
+      </table>
+      <p style="margin-top:20px;">
+        <a href="${baseUrl}/member" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
+          Log in to the Member Portal
+        </a>
+      </p>
+      <p style="color:#555;font-size:13px;">Use the email address and password you chose during registration.</p>
+    `),
+  });
+}
+
+// Password reset link (30-minute, single-use token).
+function sendPasswordResetEmail(member, token) {
+  const { baseUrl } = getConfig();
+  const link = `${baseUrl}/member/reset?token=${encodeURIComponent(token)}`;
+  return sendEmail({
+    to: member.email,
+    subject: 'Reset your Zentriva portal password',
+    text:
+      `Hi ${member.full_name},\n\nReset your Zentriva member portal password using this link (valid for 30 minutes):\n${link}\n\n` +
+      `If you didn't request this, you can ignore this email.\n`,
+    html: layout('Reset your password', `
+      <p>Hi <strong>${escapeHtml(member.full_name)}</strong>,</p>
+      <p>We received a request to reset your member portal password. The link below is valid for <strong>30 minutes</strong> and can be used once.</p>
+      <p style="margin-top:20px;">
+        <a href="${link}" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
+          Choose a new password
+        </a>
+      </p>
+      <p style="color:#555;font-size:13px;">If you didn't request this, you can safely ignore this email — your password is unchanged.</p>
+    `),
+  });
+}
+
+module.exports = { isEmailEnabled, sendEmail, sendRegistrationEmail, sendPasswordResetEmail };

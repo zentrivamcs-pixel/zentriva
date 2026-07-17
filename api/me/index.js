@@ -1,51 +1,25 @@
 // /api/me — GET (the logged-in member's own record), PUT (update own profile).
-const {
-  getClient, ensureSchema, parseBody, sanitizeMember, requireMember,
-  PROFILE_EDITABLE_FIELDS, buildMembershipId,
-} = require('../_lib');
+const { repo, getReadyDb, parseBody, requireMemberRecord } = require('../_lib');
+const { cleanProfileUpdate } = require('../../shared/validation');
 
 module.exports = async (req, res) => {
   try {
-    const memberId = requireMember(req, res);
-    if (!memberId) return;
-
-    const db = getClient();
-    await ensureSchema(db);
-
-    const load = () => db.execute({ sql: 'SELECT * FROM members WHERE id = ?', args: [memberId] });
-
-    let result = await load();
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Member not found' });
-    let member = result.rows[0];
-
-    // Backfill membership numbers for members registered before they existed.
-    if (!member.membership_id) {
-      await db.execute({
-        sql: 'UPDATE members SET membership_id = ? WHERE id = ?',
-        args: [buildMembershipId(member.id, member.membership_category, member.created_at), memberId]
-      });
-      result = await load();
-      member = result.rows[0];
-    }
+    const db = await getReadyDb();
+    const member = await requireMemberRecord(req, res, db);
+    if (!member) return;
 
     if (req.method === 'GET') {
-      return res.status(200).json(sanitizeMember(member));
+      return res.status(200).json(repo.sanitizeMember(member));
     }
 
     if (req.method === 'PUT') {
-      const body = parseBody(req);
-      const updates = PROFILE_EDITABLE_FIELDS.filter((f) => body[f] !== undefined);
-      if (updates.length === 0) {
+      // Cleaned (trimmed, length-capped) before the repo's field whitelist.
+      const cleaned = cleanProfileUpdate(parseBody(req), repo.PROFILE_EDITABLE_FIELDS);
+      const { updated, member: fresh } = await repo.updateProfile(db, member.id, cleaned);
+      if (!updated) {
         return res.status(400).json({ error: 'No editable fields provided' });
       }
-      const assignments = updates.map((f) => `${f} = ?`).join(', ');
-      const args = updates.map((f) => (body[f] === '' ? null : body[f]));
-      await db.execute({
-        sql: `UPDATE members SET ${assignments} WHERE id = ?`,
-        args: [...args, memberId]
-      });
-      const updated = await load();
-      return res.status(200).json(sanitizeMember(updated.rows[0]));
+      return res.status(200).json(repo.sanitizeMember(fresh));
     }
 
     res.setHeader('Allow', 'GET, PUT');

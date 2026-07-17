@@ -1,5 +1,8 @@
-// POST /api/me/password — change the logged-in member's password.
-const { getClient, ensureSchema, parseBody, requireMember, auth } = require('../_lib');
+// POST /api/me/password — change the logged-in member's password. Bumps the
+// member's token_version (logging out every other session) and returns a
+// fresh token so the current session stays signed in.
+const { repo, getReadyDb, parseBody, requireMemberRecord, auth } = require('../_lib');
+const { passwordError } = require('../../shared/validation');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -8,35 +11,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const memberId = requireMember(req, res);
-    if (!memberId) return;
-
-    const db = getClient();
-    await ensureSchema(db);
+    const db = await getReadyDb();
+    const member = await requireMemberRecord(req, res, db);
+    if (!member) return;
 
     const { current_password, new_password } = parseBody(req);
     if (!current_password || !new_password) {
       return res.status(400).json({ error: 'Current and new passwords are required' });
     }
-    if (String(new_password).length < 8) {
-      return res.status(400).json({ error: 'New password must be at least 8 characters' });
-    }
+    const pwErr = passwordError(new_password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
 
-    const result = await db.execute({
-      sql: 'SELECT password_hash FROM members WHERE id = ?',
-      args: [memberId]
-    });
-    const member = result.rows[0];
-    if (!member) return res.status(404).json({ error: 'Member not found' });
     if (!auth.verifyPassword(String(current_password), member.password_hash)) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
-    await db.execute({
-      sql: 'UPDATE members SET password_hash = ? WHERE id = ?',
-      args: [auth.hashPassword(String(new_password)), memberId]
-    });
-    return res.status(200).json({ ok: true });
+    const newVersion = await repo.setPassword(db, member.id, auth.hashPassword(String(new_password)));
+    return res.status(200).json({ ok: true, token: auth.memberToken(member.id, newVersion) });
   } catch (err) {
     console.error('POST /api/me/password error:', err);
     return res.status(500).json({ error: 'Server error' });

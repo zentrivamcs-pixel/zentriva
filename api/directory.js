@@ -1,7 +1,7 @@
 // GET /api/directory — the member-facing business directory. Requires a
 // member login; returns only consented members and only directory-safe
 // fields (the registration consent covers sharing these for networking).
-const { getClient, ensureSchema, requireMember, toDirectoryEntry } = require('./_lib');
+const { repo, getReadyDb, requireMemberRecord } = require('./_lib');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
@@ -10,15 +10,10 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (!requireMember(req, res)) return;
+    const db = await getReadyDb();
+    if (!(await requireMemberRecord(req, res, db))) return;
 
-    const db = getClient();
-    await ensureSchema(db);
-
-    const result = await db.execute(
-      'SELECT * FROM members WHERE consent = 1 ORDER BY full_name COLLATE NOCASE ASC'
-    );
-    return res.status(200).json(result.rows.map(toDirectoryEntry));
+    return res.status(200).json(await repo.listDirectory(db));
   } catch (err) {
     console.error('GET /api/directory error:', err);
     return res.status(500).json({ error: 'Server error' });

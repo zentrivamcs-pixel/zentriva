@@ -46,6 +46,24 @@ function AdminLayout({ onLogout }) {
 
   useEffect(() => { loadMembers(); }, [loadMembers]);
 
+  // Stopgap password reset: clears the member's portal password so they can
+  // re-activate with their email + payment reference (or a reset email).
+  const handleResetAccount = async (member) => {
+    if (!window.confirm(
+      `Reset ${member.full_name}'s portal account?\n\nTheir password will be removed and they will be signed out everywhere. ` +
+      'They can re-activate on the portal login page using their email and payment reference.'
+    )) return;
+    try {
+      const updated = await adminApi(`/api/members/${member.id}/reset`, { method: 'POST' });
+      setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setViewing((prev) => (prev && prev.id === updated.id ? updated : prev));
+      alert(`${member.full_name}'s portal account has been reset.`);
+    } catch (error) {
+      console.error('Error resetting account:', error);
+      if (!handleAuthError(error)) alert('Failed to reset the account');
+    }
+  };
+
   const handleDelete = async (member) => {
     if (!window.confirm(`Delete ${member.full_name}? This cannot be undone.`)) return;
     try {
@@ -107,12 +125,17 @@ function AdminLayout({ onLogout }) {
       <div className="md:ml-64">
         <AdminTopNav onMenuToggle={() => setNavOpen((open) => !open)} />
         <main className="p-margin-mobile md:p-margin-desktop space-y-gutter">
-          <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete }} />
+          <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete, handleResetAccount }} />
         </main>
       </div>
 
       {viewing && (
-        <AdminViewModal member={viewing} onClose={() => setViewing(null)} onEdit={() => openEdit(viewing)} />
+        <AdminViewModal
+          member={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={() => openEdit(viewing)}
+          onResetAccount={() => handleResetAccount(viewing)}
+        />
       )}
       {editing && (
         <AdminEditModal

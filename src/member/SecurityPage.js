@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMemberAuth } from './MemberAuthContext';
-import { memberApi } from '../shared/api';
+import { memberApi, setMemberToken } from '../shared/api';
 
 // Matches the API's minimum (see /api/me/password).
 const MIN_PASSWORD_LENGTH = 8;
@@ -41,13 +41,16 @@ function SecurityPage() {
     setSaving(true);
     setPasswordError('');
     try {
-      await memberApi('/api/me/password', {
+      const result = await memberApi('/api/me/password', {
         method: 'POST',
         body: JSON.stringify({
           current_password: passwordForm.current,
           new_password: passwordForm.next,
         }),
       });
+      // Changing the password invalidates all sessions; the server returns a
+      // fresh token so THIS session stays signed in.
+      if (result.token) setMemberToken(result.token);
       setPasswordSuccess(true);
       setPasswordForm({ current: '', next: '', confirm: '' });
     } catch (error) {

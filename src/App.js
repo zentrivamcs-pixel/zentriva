@@ -21,6 +21,7 @@ const DirectoryPage = lazy(() => import('./member/DirectoryPage'));
 const ComingSoon = lazy(() => import('./member/ComingSoon'));
 const PrivacyPolicy = lazy(() => import('./legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./legal/TermsOfService'));
+const ResetPasswordPage = lazy(() => import('./member/ResetPasswordPage'));
 
 function RouteFallback() {
   return (
@@ -73,6 +74,9 @@ function App() {
           <Route path="/register" element={<FormPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          {/* Public — the email reset link must work while logged out, so it
+              lives outside the authenticated /member layout. */}
+          <Route path="/member/reset" element={<ResetPasswordPage />} />
 
           <Route path="/admin" element={<AdminGate />}>
             <Route index element={<AdminOverview />} />

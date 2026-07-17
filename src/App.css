@@ -634,3 +634,11 @@
       transform: rotate(360deg);
     }
   }
+
+  /* Intro text under a form section heading */
+  .form-container .section-hint {
+    color: #555;
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }

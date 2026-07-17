@@ -4,7 +4,7 @@
 // source of truth even if a user closes the tab between paying and the
 // client-side save completing.
 const crypto = require('crypto');
-const { getClient, ensureSchema } = require('../_lib');
+const { repo, getReadyDb } = require('../_lib');
 
 // Signature is computed over the raw request body, so body parsing is
 // disabled and the stream is read manually.
@@ -41,33 +41,8 @@ module.exports = async (req, res) => {
     const event = JSON.parse(raw.toString('utf8'));
 
     if (event.event === 'charge.success' && event.data) {
-      const tx = event.data;
-      const db = getClient();
-      await ensureSchema(db);
-
-      // Link to a member if a registration already used this reference.
-      const memberResult = await db.execute({
-        sql: 'SELECT id FROM members WHERE payment_reference = ?',
-        args: [tx.reference]
-      });
-      const memberId = memberResult.rows[0] ? Number(memberResult.rows[0].id) : null;
-
-      await db.execute({
-        sql: `INSERT INTO payments (member_id, reference, amount_kobo, currency, status, channel, description, paid_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT(reference) DO UPDATE SET
-                status = excluded.status,
-                paid_at = excluded.paid_at,
-                member_id = COALESCE(payments.member_id, excluded.member_id)`,
-        args: [
-          memberId, tx.reference, tx.amount, tx.currency, tx.status,
-          tx.channel || null,
-          (tx.metadata && tx.metadata.membership_tier)
-            ? `${tx.metadata.membership_tier} tier payment`
-            : 'Paystack payment',
-          tx.paid_at || tx.paidAt || null,
-        ]
-      });
+      const db = await getReadyDb();
+      await repo.recordWebhookPayment(db, event.data);
     }
 
     // Always 200 so Paystack doesn't retry events we've already handled.
