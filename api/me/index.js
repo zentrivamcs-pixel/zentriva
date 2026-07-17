@@ -14,7 +14,10 @@ module.exports = async (req, res) => {
 
     if (req.method === 'PUT') {
       // Cleaned (trimmed, length-capped) before the repo's field whitelist.
-      const cleaned = cleanProfileUpdate(parseBody(req), repo.PROFILE_EDITABLE_FIELDS);
+      const { value: cleaned, errors } = cleanProfileUpdate(parseBody(req), repo.PROFILE_EDITABLE_FIELDS);
+      if (errors.length > 0) {
+        return res.status(400).json({ error: errors.join(', ') });
+      }
       const { updated, member: fresh } = await repo.updateProfile(db, member.id, cleaned);
       if (!updated) {
         return res.status(400).json({ error: 'No editable fields provided' });

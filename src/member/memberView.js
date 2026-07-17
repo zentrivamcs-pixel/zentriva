@@ -18,6 +18,20 @@ export function formatShortDate(date) {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
 
+// Membership numbers are "ZNTR-<id>-<category>-<year>", e.g.
+// "ZNTR-1042-EXE-2026" (see buildMembershipId in shared/membersRepo.js). The
+// category letters anchor the match so a bare fallback ID like "ZNTR-1042"
+// (used when no real membership_id has been assigned yet) isn't mistaken
+// for one with a trailing year. Pulled back out here so the card can be
+// checked against itself: the ID number, "Member Since", and "Date Issued"
+// all describe the same event and must agree.
+const ID_YEAR_RE = /-[A-Z]+-(\d{4})$/;
+
+export function membershipIdYear(membershipId) {
+  const match = ID_YEAR_RE.exec(membershipId || '');
+  return match ? Number(match[1]) : null;
+}
+
 const TIER_DESCRIPTIONS = {
   standard:
     'You are on the Standard tier with access to core training programs, the digital member network, and email support.',
@@ -34,6 +48,20 @@ export function buildMemberView(member) {
   const tier = getTier(member.membership_tier);
   const active = renewal.getTime() > Date.now();
   const fullName = member.full_name || 'Zentriva Member';
+  const membershipId = member.membership_id || `ZNTR-${1000 + Number(member.id || 0)}`;
+
+  // Cross-field check: the year embedded in the membership number must
+  // reconcile with the registration year that drives "Member Since" and
+  // "Date Issued". A mismatch means either legacy data (ID assigned before
+  // membership_id existed, backfilled against a different created_at) or a
+  // future regression — surfaced here instead of failing silently on the card.
+  const embeddedYear = membershipIdYear(membershipId);
+  if (embeddedYear !== null && embeddedYear !== created.getFullYear()) {
+    console.warn(
+      `Membership ${membershipId}: ID year (${embeddedYear}) does not match the ` +
+        `registration year (${created.getFullYear()}) used for "Member Since" and "Date Issued".`
+    );
+  }
 
   return {
     id: member.id,
@@ -51,9 +79,12 @@ export function buildMemberView(member) {
     statusLabel: active ? 'ACTIVE STATUS' : 'RENEWAL DUE',
     active,
     memberSince: String(created.getFullYear()),
-    issuedDate: `${MONTHS[created.getMonth()]} ${created.getFullYear()}`,
+    // Same "MMM D, YYYY" format as nextRenewal (via formatShortDate) and the
+    // billing/payment dates elsewhere in the portal — one date format,
+    // always including the year, everywhere a precise date is shown.
+    issuedDate: formatShortDate(created),
     renewalDate: renewal,
     nextRenewal: formatShortDate(renewal),
-    membershipId: member.membership_id || `ZNTR-${1000 + Number(member.id || 0)}`,
+    membershipId,
   };
 }

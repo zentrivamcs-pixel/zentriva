@@ -192,7 +192,8 @@ app.get('/api/me', requireMember, wrap(async (req, res) => {
 
 app.put('/api/me', requireMember, wrap(async (req, res) => {
   // Cleaned (trimmed, length-capped) before the repo's field whitelist.
-  const cleaned = cleanProfileUpdate(req.body || {}, repo.PROFILE_EDITABLE_FIELDS);
+  const { value: cleaned, errors } = cleanProfileUpdate(req.body || {}, repo.PROFILE_EDITABLE_FIELDS);
+  if (errors.length > 0) return res.status(400).json({ error: errors.join(', ') });
   const { updated, member } = await repo.updateProfile(db, req.memberId, cleaned);
   if (!updated) return res.status(400).json({ error: 'No editable fields provided' });
   res.json(repo.sanitizeMember(member));

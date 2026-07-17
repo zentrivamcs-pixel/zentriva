@@ -8,6 +8,7 @@
 // - closed-choice fields (gender, category, yes/no, tier…) must be one of
 //   their known values or they are dropped
 // - arrays must be arrays of bounded strings with a bounded item count
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { MEMBERSHIP_TIERS } = require('./membershipTiers');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -55,6 +56,21 @@ function cleanEmail(value) {
   return email.toLowerCase();
 }
 
+// Validates a phone number against its own country's numbering plan and
+// normalizes it to E.164 (e.g. "+2348012345678") so every stored number is
+// in one unambiguous format. A number typed without a country code is
+// assumed to be Nigerian local format (e.g. "0801...") since that's the
+// default region for Zentriva's membership base; numbers that already
+// include a country code (e.g. "+1...") are validated against that country
+// instead.
+function cleanPhone(value) {
+  const raw = cleanString(value, 32);
+  if (!raw) return null;
+  const parsed = parsePhoneNumberFromString(raw, 'NG');
+  if (!parsed || !parsed.isValid()) return null;
+  return parsed.number;
+}
+
 // --- Field specs ---------------------------------------------------------------
 
 // How to clean each writable members column. `required` is enforced only by
@@ -64,8 +80,8 @@ const FIELD_SPECS = {
   gender: { clean: (v) => cleanEnum(v, GENDERS), required: true },
   membership_category: { clean: (v) => cleanEnum(v, CATEGORIES), required: true },
   date_of_birth: { clean: (v) => (typeof v === 'string' && DATE_RE.test(v) ? v : null) },
-  phone_number: { clean: (v) => cleanString(v, 32), required: true },
-  whatsapp_number: { clean: (v) => cleanString(v, 32) },
+  phone_number: { clean: cleanPhone, required: true },
+  whatsapp_number: { clean: cleanPhone },
   email: { clean: cleanEmail, required: true },
   employment_status: { clean: (v) => cleanArray(v), array: true },
   profession: { clean: (v) => cleanString(v, 200) },
@@ -77,7 +93,7 @@ const FIELD_SPECS = {
   business_type: { clean: (v) => cleanString(v, 200) },
   products_services: { clean: (v) => cleanString(v, 2000) },
   business_location: { clean: (v) => cleanString(v, 300) },
-  business_phone: { clean: (v) => cleanString(v, 32) },
+  business_phone: { clean: cleanPhone },
   social_media: { clean: (v) => cleanString(v, 300) },
   years_in_business: { clean: (v) => cleanEnum(v, YEARS_IN_BUSINESS) },
   skills: { clean: (v) => cleanArray(v), array: true },
@@ -128,6 +144,9 @@ function validateRegistration(body) {
     // Overwrite the generic message with a clearer one for the common case.
     errors.push('email address is not valid');
   }
+  if (body && body.phone_number && !value.phone_number) {
+    errors.push('phone number is not a valid number for its country/region');
+  }
   if (value.employment_status.length === 0) {
     errors.push('at least one employment status is required');
   }
@@ -151,19 +170,33 @@ function passwordError(password) {
 
 // Cleans a member self-service profile update: only the given fields, each
 // through its spec. Unknown/never-editable fields are dropped here AND by
-// the repo's PROFILE_EDITABLE_FIELDS whitelist.
+// the repo's PROFILE_EDITABLE_FIELDS whitelist. Returns { value, errors } —
+// a field that fails its format check (e.g. an unparsable phone number) is
+// reported as an error rather than silently saved as blank, since the
+// member almost certainly meant to set a value, not clear one.
 function cleanProfileUpdate(body, editableFields) {
-  const out = {};
-  if (!body) return out;
+  const value = {};
+  const errors = [];
+  if (!body) return { value, errors };
   for (const field of editableFields) {
     if (body[field] === undefined) continue;
     const spec = FIELD_SPECS[field];
-    // Explicitly clearing a field is allowed: cleaned null becomes ''
-    // so the repo writes NULL rather than skipping the field.
     const cleaned = spec ? spec.clean(body[field]) : null;
-    out[field] = cleaned === null ? '' : cleaned;
+    if (cleaned === null) {
+      // Explicitly clearing a field (empty/whitespace input) is allowed —
+      // it becomes '' so the repo writes NULL. Anything else that failed
+      // cleaning is a format error.
+      const isExplicitClear = body[field] === null || (typeof body[field] === 'string' && body[field].trim() === '');
+      if (isExplicitClear) {
+        value[field] = '';
+      } else {
+        errors.push(`${field} is not valid`);
+      }
+    } else {
+      value[field] = cleaned;
+    }
   }
-  return out;
+  return { value, errors };
 }
 
 // Lenient cleaning for admin edits: everything is optional, but every value
@@ -173,7 +206,7 @@ function cleanAdminWrite(body) {
 }
 
 module.exports = {
-  cleanString, cleanEmail, cleanArray, cleanEnum,
+  cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum,
   validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite,
   PASSWORD_MIN, PASSWORD_MAX,
 };

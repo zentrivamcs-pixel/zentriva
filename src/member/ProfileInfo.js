@@ -3,6 +3,7 @@ import ImagePlaceholder from '../shared/ImagePlaceholder';
 import { useProfile } from './ProfileContext';
 import { useMemberAuth } from './MemberAuthContext';
 import { memberApi } from '../shared/api';
+import { isValidPhone } from '../shared/phoneValidation';
 
 // The profile fields a member can edit about themselves. Keys match the
 // PROFILE_EDITABLE_FIELDS the API accepts on PUT /api/me.
@@ -71,8 +72,16 @@ function ProfileInfo() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setSaving(true);
     setSaveError('');
+    if (form.phone_number && !isValidPhone(form.phone_number)) {
+      setSaveError('Please enter a valid Phone Number, including the country code if outside Nigeria.');
+      return;
+    }
+    if (form.whatsapp_number && !isValidPhone(form.whatsapp_number)) {
+      setSaveError('Please enter a valid WhatsApp Number, including the country code if outside Nigeria.');
+      return;
+    }
+    setSaving(true);
     try {
       const updated = await memberApi('/api/me', {
         method: 'PUT',

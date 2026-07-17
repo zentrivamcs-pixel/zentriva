@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
 import { publicApi } from './shared/api';
+import { isValidPhone } from './shared/phoneValidation';
 
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
@@ -251,6 +252,21 @@ function FormPage() {
     // demand every box) — enforce "at least one" here before taking payment.
     if (formData.employmentStatus.length === 0) {
       setValidationError('Please select at least one option under "Current Status" in the Employment section.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!isValidPhone(formData.phoneNumber)) {
+      setValidationError('Please enter a valid phone number for the "Phone Number" field, including the country code if outside Nigeria (e.g. +234 801 234 5678).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (formData.whatsappNumber && !isValidPhone(formData.whatsappNumber)) {
+      setValidationError('Please enter a valid WhatsApp number, including the country code if outside Nigeria.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (formData.businessPhone && !isValidPhone(formData.businessPhone)) {
+      setValidationError('Please enter a valid Business Phone Number, including the country code if outside Nigeria.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -542,7 +558,7 @@ function FormPage() {
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 required
-                placeholder="(555) 123-4567"
+                placeholder="0801 234 5678 or +234 801 234 5678"
               />
             </div>
 
@@ -553,7 +569,7 @@ function FormPage() {
                 name="whatsappNumber"
                 value={formData.whatsappNumber}
                 onChange={handleChange}
-                placeholder="(555) 123-4567"
+                placeholder="0801 234 5678 or +234 801 234 5678"
               />
             </div>
           </div>
@@ -723,7 +739,7 @@ function FormPage() {
                     name="businessPhone"
                     value={formData.businessPhone}
                     onChange={handleChange}
-                    placeholder="Business phone"
+                    placeholder="0801 234 5678 or +234 801 234 5678"
                   />
                 </div>
 

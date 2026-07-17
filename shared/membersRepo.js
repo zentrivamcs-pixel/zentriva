@@ -276,16 +276,23 @@ async function createMember(db, body, paymentTx, passwordHash) {
       throw new ConflictError('DUPLICATE_REFERENCE', 'This payment has already been used for a registration');
     }
 
+    // Captured once and reused for both the row's created_at and the
+    // membership number's embedded year — relying on two separate clock
+    // reads (JS now vs. SQLite's own datetime('now')) risked the two
+    // drifting by a year for anyone registering right at a year boundary,
+    // which would then desync the ID number from "Member Since"/"Date
+    // Issued" on the card forever.
+    const now = new Date().toISOString();
     const placeholders = COLUMNS.map(() => '?').join(', ');
     const result = await tx.execute({
-      sql: `INSERT INTO members (${COLUMNS.join(', ')}) VALUES (${placeholders})`,
-      args: toArgs(body),
+      sql: `INSERT INTO members (${COLUMNS.join(', ')}, created_at) VALUES (${placeholders}, ?)`,
+      args: [...toArgs(body), now],
     });
     const newId = Number(result.lastInsertRowid);
 
     await tx.execute({
       sql: 'UPDATE members SET membership_id = ?, password_hash = ? WHERE id = ?',
-      args: [buildMembershipId(newId, body.membership_category), passwordHash || null, newId],
+      args: [buildMembershipId(newId, body.membership_category, now), passwordHash || null, newId],
     });
 
     if (paymentTx) {
