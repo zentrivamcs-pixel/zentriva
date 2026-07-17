@@ -52,8 +52,12 @@ Vercel deploys from a Git repo. Create a repo and push the `ctca-business-form` 
 | --- | --- | --- |
 | `TURSO_DATABASE_URL` | your Turso database URL (`libsql://…`) | runtime |
 | `TURSO_AUTH_TOKEN` | your Turso auth token | runtime |
-| `REACT_APP_ADMIN_PASSWORD` | the password for `/admin` | build |
+| `ADMIN_PASSWORD` | the password for `/admin` | runtime |
+| `SESSION_SECRET` | long random string signing admin/member tokens | runtime |
+| `PAYSTACK_SECRET_KEY` | Paystack secret key (server-side payment verification) | runtime |
+| `REACT_APP_PAYSTACK_PUBLIC_KEY` | Paystack public key | build |
 | `REACT_APP_WHATSAPP_GROUP_URL` | your WhatsApp group invite link | build |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token — passport photos and bank-transfer payment proof uploads fail without this. Create a Blob store under Storage → Create Database → Blob and link it to the project; Vercel sets this automatically | runtime |
 
 > `REACT_APP_*` values are baked into the JS bundle at **build time** — if you change
 > one later, redeploy. `TURSO_*` values are read at **runtime** by the functions.

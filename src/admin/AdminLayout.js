@@ -64,6 +64,24 @@ function AdminLayout({ onLogout }) {
     }
   };
 
+  // Approves or rejects a pending bank-transfer registration's payment
+  // proof. Approving unblocks the member's portal login.
+  const handlePaymentDecision = async (member, decision) => {
+    const verb = decision === 'approve' ? 'Approve' : 'Reject';
+    if (!window.confirm(`${verb} ${member.full_name}'s payment?`)) return;
+    try {
+      const updated = await adminApi(`/api/members/${member.id}/payment`, {
+        method: 'POST',
+        body: JSON.stringify({ decision }),
+      });
+      setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setViewing((prev) => (prev && prev.id === updated.id ? updated : prev));
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      if (!handleAuthError(error)) alert(`Failed to ${decision} the payment`);
+    }
+  };
+
   const handleDelete = async (member) => {
     if (!window.confirm(`Delete ${member.full_name}? This cannot be undone.`)) return;
     try {
@@ -135,6 +153,8 @@ function AdminLayout({ onLogout }) {
           onClose={() => setViewing(null)}
           onEdit={() => openEdit(viewing)}
           onResetAccount={() => handleResetAccount(viewing)}
+          onApprovePayment={() => handlePaymentDecision(viewing, 'approve')}
+          onRejectPayment={() => handlePaymentDecision(viewing, 'reject')}
         />
       )}
       {editing && (

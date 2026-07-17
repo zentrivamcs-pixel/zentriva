@@ -1,6 +1,7 @@
 // /api/members  — GET (list all, admin only), POST (create, payment-gated)
 const { repo, getReadyDb, parseBody, verifyPaystackPayment, requireAdmin, auth } = require('../_lib');
-const { validateRegistration, passwordError } = require('../../shared/validation');
+const { validateRegistration, passwordError, cleanUrl } = require('../../shared/validation');
+const { getTier } = require('../../shared/membershipTiers');
 const { sendRegistrationEmail } = require('../../shared/email');
 
 module.exports = async (req, res) => {
@@ -32,14 +33,40 @@ module.exports = async (req, res) => {
         passwordHash = auth.hashPassword(String(body.password));
       }
 
-      const tx = await verifyPaystackPayment(value.payment_reference, value.membership_tier);
-      if (!tx) {
-        return res.status(402).json({ error: 'Payment could not be verified' });
+      // Two ways to pay: a verified Paystack charge (member logs in right
+      // away), or a bank transfer with an uploaded proof image (member's
+      // account is created but login is gated until an admin reviews and
+      // approves the proof from the dashboard).
+      const isBankTransfer = body.payment_method === 'bank_transfer';
+      let tx;
+      let paymentMeta;
+      if (isBankTransfer) {
+        const proofUrl = cleanUrl(body.payment_proof_url);
+        if (!proofUrl) {
+          return res.status(400).json({ error: 'A payment proof image is required for bank transfer registrations' });
+        }
+        // No Paystack transaction to verify — record a pending payment row
+        // using the same shape createMember expects from a real Paystack tx.
+        tx = {
+          reference: value.payment_reference,
+          amount: getTier(value.membership_tier).priceNaira * 100,
+          currency: 'NGN',
+          status: 'pending',
+          channel: 'bank_transfer',
+          paid_at: null,
+        };
+        paymentMeta = { method: 'bank_transfer', status: 'pending_review', proofUrl };
+      } else {
+        tx = await verifyPaystackPayment(value.payment_reference, value.membership_tier);
+        if (!tx) {
+          return res.status(402).json({ error: 'Payment could not be verified' });
+        }
+        paymentMeta = { method: 'paystack', status: 'paid', proofUrl: null };
       }
 
       const db = await getReadyDb();
       // Atomic: member row + membership number + password + payment record.
-      const created = await repo.createMember(db, value, tx, passwordHash);
+      const created = await repo.createMember(db, value, tx, passwordHash, paymentMeta);
 
       // Membership confirmation email — awaited so the serverless function
       // isn't frozen mid-send, but strictly best-effort: a mail failure

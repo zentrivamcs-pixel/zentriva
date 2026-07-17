@@ -17,14 +17,20 @@ const COLUMNS = [
   'services_needed', 'other_services_needed', 'offer_discounts', 'discount_details',
   'open_to_partnerships', 'willing_to_mentor', 'available_to_speak', 'employs_staff',
   'offer_category', 'other_category', 'consent', 'additional_comments', 'membership_tier',
-  'payment_reference'
+  'payment_reference', 'passport_photo_url'
 ];
+
+// Payment-tracking columns set only through createMember (registration) or
+// setPaymentStatus (admin approve/reject) — never through the generic admin
+// PUT, so a payment's status can't be silently overwritten by an unrelated
+// profile edit.
+const PAYMENT_COLUMNS = ['payment_method', 'payment_status', 'payment_proof_url'];
 
 // Profile fields a logged-in member may update about themselves (PUT /api/me).
 const PROFILE_EDITABLE_FIELDS = [
   'phone_number', 'whatsapp_number', 'profession', 'company_name', 'job_title',
   'work_description', 'business_name', 'business_type', 'products_services',
-  'business_location', 'business_phone', 'social_media',
+  'business_location', 'business_phone', 'social_media', 'passport_photo_url',
 ];
 
 // Fields exposed to other members in the directory (consented data only —
@@ -84,6 +90,10 @@ async function ensureSchema(db) {
       membership_tier       TEXT,
       password_hash         TEXT,
       membership_id         TEXT,
+      passport_photo_url    TEXT,
+      payment_method        TEXT,
+      payment_status        TEXT,
+      payment_proof_url     TEXT,
       created_at            TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
@@ -114,6 +124,10 @@ async function ensureSchema(db) {
     // Bumped on every password set/clear; member session tokens embed it,
     // so a password change invalidates all previously issued tokens.
     'ALTER TABLE members ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE members ADD COLUMN passport_photo_url TEXT',
+    'ALTER TABLE members ADD COLUMN payment_method TEXT',
+    'ALTER TABLE members ADD COLUMN payment_status TEXT',
+    'ALTER TABLE members ADD COLUMN payment_proof_url TEXT',
   ];
   for (const sql of migrations) {
     try {
@@ -122,6 +136,13 @@ async function ensureSchema(db) {
       // Column already exists — ignore.
     }
   }
+
+  // Backfill: every row that predates payment_status (all Paystack
+  // registrations, which were always verified before insert) is 'paid'.
+  // Without this, pre-existing members would be wrongly gated as pending.
+  await db.execute(
+    "UPDATE members SET payment_status = 'paid' WHERE payment_status IS NULL"
+  );
 
   // Prevent the same Paystack payment from being used for more than one registration.
   await db.execute(`
@@ -252,11 +273,13 @@ class ConflictError extends Error {
 
 // Creates a member atomically: insert + membership number + account password
 // + payment record all commit together or not at all. `paymentTx` is the
-// verified Paystack transaction (may be null in edge cases where no payment
-// row is wanted). `passwordHash` (already hashed — never a plaintext
-// password) activates the member's portal account at registration time; when
-// null the member can still activate later via the claim flow.
-async function createMember(db, body, paymentTx, passwordHash) {
+// verified Paystack transaction, or a synthetic equivalent built by the
+// caller for a bank-transfer registration (may be null in edge cases where
+// no payment row is wanted). `passwordHash` (already hashed — never a
+// plaintext password) activates the member's portal account at registration
+// time; when null the member can still activate later via the claim flow.
+// `paymentMeta` is { method: 'paystack'|'bank_transfer', status: 'paid'|'pending_review', proofUrl }.
+async function createMember(db, body, paymentTx, passwordHash, paymentMeta) {
   const tx = await db.transaction('write');
   try {
     // App-level uniqueness checks inside the transaction, so the answer
@@ -291,8 +314,16 @@ async function createMember(db, body, paymentTx, passwordHash) {
     const newId = Number(result.lastInsertRowid);
 
     await tx.execute({
-      sql: 'UPDATE members SET membership_id = ?, password_hash = ? WHERE id = ?',
-      args: [buildMembershipId(newId, body.membership_category, now), passwordHash || null, newId],
+      sql: `UPDATE members
+            SET membership_id = ?, password_hash = ?, payment_method = ?, payment_status = ?, payment_proof_url = ?
+            WHERE id = ?`,
+      args: [
+        buildMembershipId(newId, body.membership_category, now), passwordHash || null,
+        (paymentMeta && paymentMeta.method) || null,
+        (paymentMeta && paymentMeta.status) || null,
+        (paymentMeta && paymentMeta.proofUrl) || null,
+        newId,
+      ],
     });
 
     if (paymentTx) {
@@ -443,6 +474,25 @@ async function listDirectory(db) {
   return result.rows.map(toDirectoryEntry);
 }
 
+// Admin approve/reject for a pending bank-transfer registration. Also
+// updates the matching payments row so billing history reflects the
+// decision. Returns the updated member, or null if not found.
+async function setPaymentStatus(db, id, status) {
+  const existing = await getMember(db, id);
+  if (!existing) return null;
+  await db.execute({
+    sql: 'UPDATE members SET payment_status = ? WHERE id = ?',
+    args: [status, id],
+  });
+  if (existing.payment_reference) {
+    await db.execute({
+      sql: 'UPDATE payments SET status = ? WHERE reference = ?',
+      args: [status, existing.payment_reference],
+    });
+  }
+  return getMember(db, id);
+}
+
 // --- Payments -------------------------------------------------------------------
 
 async function listPaymentsForMember(db, memberId) {
@@ -483,12 +533,12 @@ async function recordWebhookPayment(db, tx) {
 }
 
 module.exports = {
-  ARRAY_FIELDS, COLUMNS, PROFILE_EDITABLE_FIELDS, DIRECTORY_FIELDS,
+  ARRAY_FIELDS, COLUMNS, PAYMENT_COLUMNS, PROFILE_EDITABLE_FIELDS, DIRECTORY_FIELDS,
   ensureSchema, deserialize, sanitizeMember, toDirectoryEntry, toArgs,
   buildMembershipId, ConflictError,
   listMembers, getMember, emailExists, createMember, updateMember, deleteMember,
   findByEmailWithPassword, findByEmailAndReference, setPassword, clearPassword,
   createPasswordReset, consumePasswordReset,
   getMemberWithMembershipId, updateProfile, listDirectory,
-  listPaymentsForMember, recordWebhookPayment,
+  listPaymentsForMember, recordWebhookPayment, setPaymentStatus,
 };

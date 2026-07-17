@@ -28,7 +28,7 @@ function Field({ label, children }) {
 
 function ProfileInfo() {
   const { member, view, setMember } = useMemberAuth();
-  const { avatarSrc, setAvatarSrc } = useProfile();
+  const { avatarSrc, setAvatarFile, uploading: avatarUploading, error: avatarError } = useProfile();
   const fileInputRef = useRef(null);
 
   const initialForm = useMemo(() => {
@@ -65,9 +65,8 @@ function ProfileInfo() {
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatarSrc(reader.result);
-    reader.readAsDataURL(file);
+    setAvatarFile(file);
+    e.target.value = ''; // allow picking the same file again after an error
   };
 
   const handleSave = async (e) => {
@@ -137,12 +136,18 @@ function ProfileInfo() {
                 <button
                   type="button"
                   onClick={handleAvatarPick}
+                  disabled={avatarUploading}
                   aria-label="Change profile photo"
-                  className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center"
+                  className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center disabled:opacity-60"
                 >
-                  <span className="material-symbols-outlined text-sm">photo_camera</span>
+                  <span className="material-symbols-outlined text-sm">
+                    {avatarUploading ? 'hourglass_top' : 'photo_camera'}
+                  </span>
                 </button>
               </div>
+              {avatarError && (
+                <p className="font-label-sm text-label-sm text-error mb-2" role="alert">{avatarError}</p>
+              )}
               <h3 className="font-headline-md text-headline-md text-primary">{view.fullName}</h3>
               <p className="font-label-md text-label-md text-secondary mb-4">
                 {member.profession || view.tierLabel}

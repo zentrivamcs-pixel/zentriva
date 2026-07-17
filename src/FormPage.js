@@ -3,6 +3,18 @@ import { useSearchParams } from 'react-router-dom';
 import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
 import { publicApi } from './shared/api';
 import { isValidPhone } from './shared/phoneValidation';
+import { uploadImage } from './shared/uploadFile';
+
+// Mock bank details shown for the "Pay by Bank Transfer" option — replace
+// with the real account before going live.
+const BANK_TRANSFER_DETAILS = {
+  bankName: 'Zenith Bank',
+  accountNumber: '1234567890',
+  accountName: 'Zentriva Multipurpose Cooperative Society',
+};
+
+const generateBankReference = () =>
+  `BT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
 
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
@@ -81,6 +93,9 @@ const initialFormData = {
   offerCategory: [],
   otherCategory: '',
 
+  // Identity verification
+  passportPhotoUrl: '',
+
   // Member portal account
   password: '',
   confirmPassword: '',
@@ -110,18 +125,48 @@ function FormPage() {
   const [saveFailure, setSaveFailure] = useState(null);
   const [referenceCopied, setReferenceCopied] = useState(false);
   // Kept after a successful save so the thank-you screen can show it — the
-  // member needs it to activate their portal account.
+  // member needs it to activate their portal account (or knows to wait for
+  // approval, for a bank-transfer registration).
   const [lastReference, setLastReference] = useState('');
+  const [lastPaymentMethod, setLastPaymentMethod] = useState('paystack');
+
+  // 'form' — the long registration form. 'review' — the Review & Pay step,
+  // shown after the form validates but before any money changes hands.
+  const [step, setStep] = useState('form');
+
+  // Identity verification (passport/ID photo) — uploaded to Vercel Blob as
+  // soon as it's picked, so the URL is ready by the time payment happens.
+  const [passportUploading, setPassportUploading] = useState(false);
+  const [passportError, setPassportError] = useState('');
+
+  // Bank-transfer payment proof upload, shown on the Review & Pay step.
+  const [bankProofUrl, setBankProofUrl] = useState('');
+  const [bankProofUploading, setBankProofUploading] = useState(false);
+  const [bankProofError, setBankProofError] = useState('');
+  const [showBankPanel, setShowBankPanel] = useState(false);
 
   // Paystack's inline script is only needed on this page, so it's injected
-  // here instead of shipping in index.html on every page of the site.
+  // here instead of shipping in index.html on every page of the site. Its
+  // readiness is tracked in state (rather than read once at submit time)
+  // because the script loads asynchronously and may not be ready yet — and,
+  // on a misconfigured deployment, may never load at all. When it doesn't,
+  // the "Pay with Card" option is disabled but bank transfer still works.
+  const [paystackReady, setPaystackReady] = useState(!!window.PaystackPop);
   useEffect(() => {
-    if (window.PaystackPop || document.getElementById('paystack-inline-js')) return;
-    const script = document.createElement('script');
-    script.id = 'paystack-inline-js';
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.async = true;
-    document.body.appendChild(script);
+    if (window.PaystackPop) {
+      setPaystackReady(true);
+      return;
+    }
+    let existing = document.getElementById('paystack-inline-js');
+    const script = existing || document.createElement('script');
+    if (!existing) {
+      script.id = 'paystack-inline-js';
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+    script.addEventListener('load', () => setPaystackReady(true));
+    script.addEventListener('error', () => setPaystackReady(false));
   }, []);
 
   const handleDobPartChange = (part) => (e) => {
@@ -153,7 +198,7 @@ function FormPage() {
   };
 
   // Prepare data for the API (snake_case columns)
-  const buildMemberData = (paymentReference) => {
+  const buildMemberData = (paymentReference, paymentMethod, paymentProofUrl) => {
     return {
         full_name: formData.fullName,
         gender: formData.gender,
@@ -191,19 +236,23 @@ function FormPage() {
         additional_comments: formData.additionalComments || null,
         membership_tier: tier.key,
         payment_reference: paymentReference,
+        passport_photo_url: formData.passportPhotoUrl,
+        payment_method: paymentMethod,
+        payment_proof_url: paymentProofUrl || undefined,
         // Sent over HTTPS and hashed server-side before storage — the
         // plaintext is never persisted anywhere.
         password: formData.password
       };
   };
 
-  // Saves the submission — only reached after Paystack confirms payment.
-  const submitMember = async (paymentReference) => {
+  // Saves the submission — only reached after payment (Paystack success, or
+  // a bank-transfer proof has been uploaded and submitted for review).
+  const submitMember = async (paymentReference, paymentMethod, paymentProofUrl) => {
     try {
       const response = await fetch('/api/members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildMemberData(paymentReference))
+        body: JSON.stringify(buildMemberData(paymentReference, paymentMethod, paymentProofUrl))
       });
 
       if (!response.ok) {
@@ -215,14 +264,17 @@ function FormPage() {
       setFormData(initialFormData);
       setSaveFailure(null);
       setLastReference(paymentReference);
+      setLastPaymentMethod(paymentMethod);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Error submitting form:', error);
-      // The money was taken but the record didn't save. Never hide the
-      // reference behind a dismissable alert — keep it on screen until
-      // the retry succeeds or the member writes it down.
-      setSaveFailure({ reference: paymentReference, message: error.message });
+      // For Paystack, the money was taken but the record didn't save — never
+      // hide the reference behind a dismissable alert, keep it on screen
+      // until the retry succeeds or the member writes it down. For a bank
+      // transfer, no money has moved automatically, but the proof is already
+      // uploaded, so the same recover-and-retry screen applies.
+      setSaveFailure({ reference: paymentReference, message: error.message, paymentMethod, paymentProofUrl });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
@@ -241,15 +293,16 @@ function FormPage() {
 
   const handleRetrySave = () => {
     setSubmitting(true);
-    submitMember(saveFailure.reference);
+    submitMember(saveFailure.reference, saveFailure.paymentMethod, saveFailure.paymentProofUrl);
   };
 
-  // Triggers the Paystack checkout; the form is only saved once payment succeeds.
+  // Validates the form and, once it checks out, moves to the Review & Pay
+  // step — no money changes hands until a payment method is chosen there.
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Checkbox groups can't use the native `required` attribute (it would
-    // demand every box) — enforce "at least one" here before taking payment.
+    // demand every box) — enforce "at least one" here before continuing.
     if (formData.employmentStatus.length === 0) {
       setValidationError('Please select at least one option under "Current Status" in the Employment section.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -270,6 +323,11 @@ function FormPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (!formData.passportPhotoUrl) {
+      setValidationError('Please upload a passport/ID photograph (see "Identity Verification").');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (formData.password.length < 8) {
       setValidationError('Your portal password must be at least 8 characters (see "Member Portal Account").');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -281,17 +339,12 @@ function FormPage() {
       return;
     }
     setValidationError('');
-
-    if (!PAYSTACK_PUBLIC_KEY || !window.PaystackPop) {
-      alert('❌ Payment could not be loaded. Please check your connection and try again, or contact the administrator.');
-      return;
-    }
-
     setSubmitting(true);
 
-    // One account per email — check BEFORE charging, so nobody pays only to
-    // find out their email is already registered. Fail-open on network
-    // errors: the server enforces uniqueness again at save time.
+    // One account per email — check BEFORE payment, so nobody pays (or
+    // uploads proof) only to find out their email is already registered.
+    // Fail-open on network errors: the server enforces uniqueness again at
+    // save time.
     try {
       const { registered } = await publicApi('/api/auth/check-email', {
         method: 'POST',
@@ -309,6 +362,48 @@ function FormPage() {
       // Check unavailable — continue; the save endpoint still enforces it.
     }
 
+    setSubmitting(false);
+    setStep('review');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePassportChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPassportError('');
+    setPassportUploading(true);
+    try {
+      const url = await uploadImage(file, 'passports');
+      setFormData((prev) => ({ ...prev, passportPhotoUrl: url }));
+    } catch (error) {
+      setPassportError(error.message || 'Upload failed. Please try again.');
+    } finally {
+      setPassportUploading(false);
+    }
+  };
+
+  const handleBankProofChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBankProofError('');
+    setBankProofUploading(true);
+    try {
+      const url = await uploadImage(file, 'payment-proofs');
+      setBankProofUrl(url);
+    } catch (error) {
+      setBankProofError(error.message || 'Upload failed. Please try again.');
+    } finally {
+      setBankProofUploading(false);
+    }
+  };
+
+  const canPayWithCard = paystackReady && !!PAYSTACK_PUBLIC_KEY;
+
+  // Triggers the Paystack checkout; the registration is only saved once
+  // payment succeeds.
+  const handlePayWithCard = () => {
+    if (!canPayWithCard) return;
+    setSubmitting(true);
     const handler = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: formData.email,
@@ -316,13 +411,21 @@ function FormPage() {
       currency: 'NGN',
       metadata: { full_name: formData.fullName, phone_number: formData.phoneNumber, membership_tier: tier.key },
       callback: (response) => {
-        submitMember(response.reference);
+        submitMember(response.reference, 'paystack', null);
       },
       onClose: () => {
         setSubmitting(false);
       }
     });
     handler.openIframe();
+  };
+
+  // Submits the registration for review with the uploaded transfer proof —
+  // no verification happens automatically; an admin approves it later.
+  const handleSubmitBankTransfer = () => {
+    if (!bankProofUrl) return;
+    setSubmitting(true);
+    submitMember(generateBankReference(), 'bank_transfer', bankProofUrl);
   };
 
   if (submitted) {
@@ -336,7 +439,19 @@ function FormPage() {
             WhatsApp group to stay connected with other members.
           </p>
 
-          {lastReference && (
+          {lastReference && lastPaymentMethod === 'bank_transfer' && (
+            <div className="reference-note">
+              <p>
+                We've received your bank transfer proof — your registration is
+                <strong> pending review</strong>. An admin will verify your payment
+                shortly; you'll be able to <a href="/member">log in to the Member
+                Portal</a> once it's approved. Your reference is <strong>{lastReference}</strong>;
+                keep it for your records.
+              </p>
+            </div>
+          )}
+
+          {lastReference && lastPaymentMethod !== 'bank_transfer' && (
             <div className="reference-note">
               <p>
                 Your member account is ready — <a href="/member">log in to the
@@ -365,7 +480,12 @@ function FormPage() {
           <button
             type="button"
             className="submit-another-button"
-            onClick={() => setSubmitted(false)}
+            onClick={() => {
+              setSubmitted(false);
+              setStep('form');
+              setBankProofUrl('');
+              setShowBankPanel(false);
+            }}
           >
             Submit another response
           </button>
@@ -374,28 +494,31 @@ function FormPage() {
     );
   }
 
-  // Payment went through but the registration failed to save — show a
-  // persistent recovery screen instead of losing the reference in an alert.
+  // Payment went through (or the transfer proof was uploaded) but the
+  // registration failed to save — show a persistent recovery screen instead
+  // of losing the reference in an alert.
   if (saveFailure) {
+    const isBankTransfer = saveFailure.paymentMethod === 'bank_transfer';
     return (
       <div className="form-container">
         <div className="success-screen">
           <div className="success-icon">⚠️</div>
-          <h1>Payment received — one more step</h1>
+          <h1>{isBankTransfer ? 'Proof received — one more step' : 'Payment received — one more step'}</h1>
           <p className="success-message">
-            Your payment of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} was received, but saving your
-            registration failed ({saveFailure.message}). Your money is safe.
+            {isBankTransfer
+              ? `Your payment proof was uploaded, but saving your registration failed (${saveFailure.message}).`
+              : `Your payment of ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} was received, but saving your registration failed (${saveFailure.message}). Your money is safe.`}
           </p>
           <div className="reference-note error">
             <p>
-              Your payment reference: <strong>{saveFailure.reference}</strong>
+              Your reference: <strong>{saveFailure.reference}</strong>
             </p>
             <button type="button" className="copy-reference-button" onClick={handleCopyReference}>
               {referenceCopied ? '✓ Copied' : 'Copy reference'}
             </button>
           </div>
           <p className="success-message">
-            Try submitting again below — your payment will not be charged twice.
+            Try submitting again below — {isBankTransfer ? 'your proof is already uploaded' : 'your payment will not be charged twice'}.
             If it keeps failing, contact us with the reference above and we'll
             complete your registration manually.
           </p>
@@ -408,6 +531,98 @@ function FormPage() {
             {submitting ? 'Retrying…' : 'Retry submission'}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // Review & Pay — shown after the form validates, before any money moves.
+  if (step === 'review') {
+    return (
+      <div className="form-container">
+        <h1>🧾 Review & Pay</h1>
+        <p className="subtitle">Confirm your details, then choose how you'd like to pay.</p>
+
+        <div className="reference-note">
+          <p>
+            <strong>{formData.fullName}</strong> — {formData.email}<br />
+            {tier.name} tier — ₦{REGISTRATION_FEE_NAIRA.toLocaleString()}/yr
+          </p>
+        </div>
+
+        <div className="form-section">
+          <h2>💳 Pay with Card (Paystack)</h2>
+          {canPayWithCard ? (
+            <>
+              <p className="section-hint">Instant activation — you can log in to the Member Portal right after payment.</p>
+              <button
+                type="button"
+                className="submit-button"
+                onClick={handlePayWithCard}
+                disabled={submitting}
+              >
+                {submitting ? 'Processing…' : `Pay ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} with Card`}
+              </button>
+            </>
+          ) : (
+            <p className="form-validation-error">
+              ⚠️ Card payment is temporarily unavailable. Please use Bank Transfer below, or try again shortly.
+            </p>
+          )}
+        </div>
+
+        <div className="form-section">
+          <h2>🏦 Pay by Bank Transfer</h2>
+          {!showBankPanel ? (
+            <button type="button" className="submit-another-button" onClick={() => setShowBankPanel(true)}>
+              Use bank transfer instead
+            </button>
+          ) : (
+            <>
+              <p className="section-hint">
+                Transfer ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} to the account below, then upload your proof
+                of payment (screenshot or receipt). Your registration will be reviewed by an admin before your
+                portal account is activated.
+              </p>
+              <div className="reference-note">
+                <p>
+                  Bank: <strong>{BANK_TRANSFER_DETAILS.bankName}</strong><br />
+                  Account Number: <strong>{BANK_TRANSFER_DETAILS.accountNumber}</strong><br />
+                  Account Name: <strong>{BANK_TRANSFER_DETAILS.accountName}</strong>
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label>Upload Payment Proof *</label>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleBankProofChange} />
+                {bankProofUploading && <p className="section-hint">Uploading…</p>}
+                {bankProofError && <p className="form-validation-error" role="alert">⚠️ {bankProofError}</p>}
+                {bankProofUrl && !bankProofUploading && (
+                  <div className="passport-preview">
+                    <img src={bankProofUrl} alt="Payment proof preview" />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="submit-button"
+                onClick={handleSubmitBankTransfer}
+                disabled={!bankProofUrl || bankProofUploading || submitting}
+              >
+                {submitting ? 'Submitting…' : "I've made the transfer — Submit for Review"}
+              </button>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="submit-another-button"
+          onClick={() => setStep('form')}
+          disabled={submitting}
+        >
+          ← Back to edit
+        </button>
       </div>
     );
   }
@@ -584,6 +799,27 @@ function FormPage() {
               required
               placeholder="you@example.com"
             />
+          </div>
+        </div>
+
+        {/* Identity Verification */}
+        <div className="form-section">
+          <h2>🪪 Identity Verification</h2>
+          <p className="section-hint">
+            Upload a clear photo of your passport, national ID, or driver's license.
+            This is used for your membership card and to verify your identity.
+          </p>
+
+          <div className="form-group">
+            <label>Passport / ID Photograph *</label>
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePassportChange} />
+            {passportUploading && <p className="section-hint">Uploading…</p>}
+            {passportError && <p className="form-validation-error" role="alert">⚠️ {passportError}</p>}
+            {formData.passportPhotoUrl && !passportUploading && (
+              <div className="passport-preview">
+                <img src={formData.passportPhotoUrl} alt="ID preview" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1127,11 +1363,11 @@ function FormPage() {
 
         <p className="payment-notice">
           💳 Your {tier.name} tier registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
-          collected via Paystack before your application is submitted.
+          collected on the next step — by card (Paystack) or bank transfer.
         </p>
 
         <button type="submit" className="submit-button" disabled={submitting}>
-          {submitting ? 'Processing…' : `📤 Pay ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} & Submit`}
+          {submitting ? 'Please wait…' : 'Continue to Payment →'}
         </button>
       </form>
     </div>

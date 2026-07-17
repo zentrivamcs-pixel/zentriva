@@ -1,36 +1,47 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { memberApi } from '../shared/api';
+import { uploadImage } from '../shared/uploadFile';
+import { useMemberAuth } from './MemberAuthContext';
 
 // Shares the member's profile photo across the portal (profile editor, the
-// membership ID card preview, and the exported badge). Photos are stored in
-// this browser's localStorage only — server-side avatar upload (object
-// storage + members.avatar_url) is the planned replacement.
+// membership ID card preview, and the exported badge). The photo lives on
+// the member record (passport_photo_url, uploaded to Vercel Blob) so it's
+// retained permanently and available from any device — not just this browser.
 const ProfileContext = createContext(null);
 
-const AVATAR_STORAGE_KEY = 'zentriva_profile_avatar';
-
 export function ProfileProvider({ children }) {
-  const [avatarSrc, setAvatarSrc] = useState(() => {
-    try {
-      return localStorage.getItem(AVATAR_STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const { member, setMember } = useMemberAuth();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
+  const avatarSrc = member?.passport_photo_url || null;
+
+  // Uploads the file to Blob storage, then saves the resulting URL onto the
+  // member's own record so it persists across devices and sessions.
+  const setAvatarFile = useCallback(async (file) => {
+    setError('');
+    setUploading(true);
     try {
-      if (avatarSrc) {
-        localStorage.setItem(AVATAR_STORAGE_KEY, avatarSrc);
-      } else {
-        localStorage.removeItem(AVATAR_STORAGE_KEY);
-      }
-    } catch {
-      // Storage unavailable (e.g. private browsing) — photo just won't persist.
+      const url = await uploadImage(file, 'passports');
+      const updated = await memberApi('/api/me', {
+        method: 'PUT',
+        body: JSON.stringify({ passport_photo_url: url }),
+      });
+      setMember(updated);
+    } catch (err) {
+      setError(err.message || 'Failed to update profile photo');
+    } finally {
+      setUploading(false);
     }
-  }, [avatarSrc]);
+  }, [setMember]);
+
+  const value = useMemo(
+    () => ({ avatarSrc, setAvatarFile, uploading, error }),
+    [avatarSrc, setAvatarFile, uploading, error]
+  );
 
   return (
-    <ProfileContext.Provider value={{ avatarSrc, setAvatarSrc }}>
+    <ProfileContext.Provider value={value}>
       {children}
     </ProfileContext.Provider>
   );

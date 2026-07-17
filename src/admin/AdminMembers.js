@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { exportDirectoryPdf } from './exportDirectoryPdf';
-import { tallyScalar, tallyArray, searchableText, ARRAY_FIELDS, FIELD_LABELS } from './adminHelpers';
+import { tallyScalar, tallyArray, searchableText, ARRAY_FIELDS, FIELD_LABELS, PAYMENT_STATUS_LABELS } from './adminHelpers';
 
 function AdminMembers() {
   const { members, loading, setViewing, openEdit, handleDelete } = useOutletContext();
@@ -176,13 +176,14 @@ function AdminMembers() {
                 <th className="px-6 py-4 font-semibold">Contact</th>
                 <th className="px-6 py-4 font-semibold">Skills</th>
                 <th className="px-6 py-4 font-semibold">Categories</th>
+                <th className="px-6 py-4 font-semibold">Payment</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/30">
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-on-surface-variant">
+                  <td colSpan="10" className="px-6 py-8 text-center text-on-surface-variant">
                     {hasFilters ? 'No members match your filters.' : 'No members registered yet.'}
                   </td>
                 </tr>
@@ -225,6 +226,16 @@ function AdminMembers() {
                         ))}
                         {(!m.offer_category || m.offer_category.length === 0) && <span className="text-on-surface-variant">—</span>}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {(() => {
+                        const status = PAYMENT_STATUS_LABELS[m.payment_status];
+                        return status ? (
+                          <span className={`px-2 py-0.5 rounded-full text-label-sm font-bold ${status.className}`}>
+                            {status.label}
+                          </span>
+                        ) : <span className="text-on-surface-variant">—</span>;
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1">

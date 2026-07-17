@@ -162,4 +162,17 @@ export const DETAIL_SECTIONS = [
       ['Consent', 'consent'], ['Additional Comments', 'additional_comments'],
     ],
   },
+  {
+    title: 'Payment', rows: [
+      ['Payment Method', 'payment_method'], ['Payment Status', 'payment_status'],
+      ['Payment Reference', 'payment_reference'],
+    ],
+  },
 ];
+
+// Human-readable label + badge color for a member's payment_status.
+export const PAYMENT_STATUS_LABELS = {
+  paid: { label: 'Paid', className: 'bg-secondary-container text-on-secondary-container' },
+  pending_review: { label: 'Pending Review', className: 'bg-tertiary-container text-on-tertiary-container' },
+  rejected: { label: 'Rejected', className: 'bg-error-container text-on-error-container' },
+};

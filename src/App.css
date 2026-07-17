@@ -484,6 +484,18 @@
     border-color: #f3d98b;
   }
 
+  .passport-preview {
+    margin-top: 10px;
+  }
+
+  .passport-preview img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 1px solid #c7cdf0;
+    object-fit: cover;
+  }
+
   .reference-note a {
     color: #0f3460;
     font-weight: 700;

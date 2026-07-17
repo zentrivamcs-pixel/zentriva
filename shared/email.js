@@ -72,6 +72,9 @@ function layout(title, bodyHtml) {
 
 // Membership confirmation, sent fire-and-forget after a registration commits.
 // (Paystack sends the payment receipt itself — this is the membership side.)
+// Bank-transfer registrations start life as `payment_status: 'pending_review'`
+// — the member can't log in yet, so the email must say that plainly rather
+// than inviting them to a portal that will reject them.
 function sendRegistrationEmail(member) {
   const { baseUrl } = getConfig();
   const row = (label, value) =>
@@ -79,28 +82,81 @@ function sendRegistrationEmail(member) {
   const tier = member.membership_tier
     ? member.membership_tier[0].toUpperCase() + member.membership_tier.slice(1)
     : 'Standard';
+  const pending = member.payment_status === 'pending_review';
 
   return sendEmail({
     to: member.email,
-    subject: 'Welcome to Zentriva — your membership is confirmed',
+    subject: pending
+      ? 'Zentriva registration received — payment under review'
+      : 'Welcome to Zentriva — your membership is confirmed',
+    text: pending
+      ? `Thanks for registering, ${member.full_name}!\n\n` +
+        `We've received your bank transfer proof and it's under review. You'll be able to log in to the member portal once it's approved.\n\n` +
+        `Membership ID: ${member.membership_id}\nTier: ${tier}\nReference: ${member.payment_reference}\n`
+      : `Welcome to Zentriva, ${member.full_name}!\n\n` +
+        `Membership ID: ${member.membership_id}\nTier: ${tier}\nPayment reference: ${member.payment_reference}\n\n` +
+        `Log in to the member portal: ${baseUrl}/member\n`,
+    html: pending
+      ? layout('Registration received — payment under review', `
+        <p>Thanks for registering, <strong>${escapeHtml(member.full_name)}</strong>! We've received your bank transfer proof.</p>
+        <table style="border-collapse:collapse;font-size:14px;">
+          ${row('Membership ID', member.membership_id)}
+          ${row('Tier', tier)}
+          ${row('Reference', member.payment_reference)}
+        </table>
+        <p style="margin-top:20px;">An admin will verify your payment shortly. You'll be able to log in to the member portal once it's approved — no action needed from you in the meantime.</p>
+      `)
+      : layout('Your membership is confirmed 🎉', `
+        <p>Welcome, <strong>${escapeHtml(member.full_name)}</strong>! Your registration is complete.</p>
+        <table style="border-collapse:collapse;font-size:14px;">
+          ${row('Membership ID', member.membership_id)}
+          ${row('Tier', tier)}
+          ${row('Category', member.membership_category || '—')}
+          ${row('Payment reference', member.payment_reference)}
+        </table>
+        <p style="margin-top:20px;">
+          <a href="${baseUrl}/member" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
+            Log in to the Member Portal
+          </a>
+        </p>
+        <p style="color:#555;font-size:13px;">Use the email address and password you chose during registration.</p>
+      `),
+  });
+}
+
+// Sent when an admin approves a bank-transfer payment — the member's account
+// switches from pending_review to paid and can now log in.
+function sendPaymentApprovedEmail(member) {
+  const { baseUrl } = getConfig();
+  return sendEmail({
+    to: member.email,
+    subject: 'Zentriva payment approved — you can now log in',
     text:
-      `Welcome to Zentriva, ${member.full_name}!\n\n` +
-      `Membership ID: ${member.membership_id}\nTier: ${tier}\nPayment reference: ${member.payment_reference}\n\n` +
+      `Good news, ${member.full_name}! Your bank transfer payment has been verified and your membership is now active.\n\n` +
       `Log in to the member portal: ${baseUrl}/member\n`,
-    html: layout('Your membership is confirmed 🎉', `
-      <p>Welcome, <strong>${escapeHtml(member.full_name)}</strong>! Your registration is complete.</p>
-      <table style="border-collapse:collapse;font-size:14px;">
-        ${row('Membership ID', member.membership_id)}
-        ${row('Tier', tier)}
-        ${row('Category', member.membership_category || '—')}
-        ${row('Payment reference', member.payment_reference)}
-      </table>
+    html: layout('Payment approved ✅', `
+      <p>Good news, <strong>${escapeHtml(member.full_name)}</strong>! Your bank transfer payment has been verified and your membership is now active.</p>
       <p style="margin-top:20px;">
         <a href="${baseUrl}/member" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
           Log in to the Member Portal
         </a>
       </p>
-      <p style="color:#555;font-size:13px;">Use the email address and password you chose during registration.</p>
+    `),
+  });
+}
+
+// Sent when an admin rejects a bank-transfer payment proof — the member's
+// account stays locked pending correct proof.
+function sendPaymentRejectedEmail(member) {
+  return sendEmail({
+    to: member.email,
+    subject: 'Zentriva payment could not be verified',
+    text:
+      `Hi ${member.full_name},\n\nWe were unable to verify the payment proof submitted with your registration. ` +
+      `Please contact support with a clear copy of your bank transfer receipt so we can complete your registration.\n`,
+    html: layout('We could not verify your payment', `
+      <p>Hi <strong>${escapeHtml(member.full_name)}</strong>,</p>
+      <p>We were unable to verify the payment proof submitted with your registration. Please contact support with a clear copy of your bank transfer receipt so we can complete your registration.</p>
     `),
   });
 }
@@ -128,4 +184,7 @@ function sendPasswordResetEmail(member, token) {
   });
 }
 
-module.exports = { isEmailEnabled, sendEmail, sendRegistrationEmail, sendPasswordResetEmail };
+module.exports = {
+  isEmailEnabled, sendEmail, sendRegistrationEmail, sendPasswordResetEmail,
+  sendPaymentApprovedEmail, sendPaymentRejectedEmail,
+};

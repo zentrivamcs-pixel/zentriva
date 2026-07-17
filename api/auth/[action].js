@@ -27,6 +27,12 @@ async function login(req, res, db) {
   if (!member || !auth.verifyPassword(String(password), member.password_hash)) {
     return res.status(401).json({ error: 'Incorrect email or password' });
   }
+  if (member.payment_status === 'pending_review') {
+    return res.status(403).json({ error: 'Your bank transfer payment is still under review. You\'ll be able to log in once an admin approves it.' });
+  }
+  if (member.payment_status === 'rejected') {
+    return res.status(403).json({ error: 'Your payment could not be verified. Please contact support to complete your registration.' });
+  }
   const token = auth.memberToken(member.id, member.token_version);
   return res.status(200).json({ token, member: repo.sanitizeMember(member) });
 }

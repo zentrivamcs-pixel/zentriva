@@ -1,7 +1,9 @@
 import React from 'react';
-import { DETAIL_SECTIONS, EDIT_FIELDS, formatValue } from './adminHelpers';
+import { DETAIL_SECTIONS, EDIT_FIELDS, formatValue, PAYMENT_STATUS_LABELS } from './adminHelpers';
 
-export function AdminViewModal({ member, onClose, onEdit, onResetAccount }) {
+export function AdminViewModal({ member, onClose, onEdit, onResetAccount, onApprovePayment, onRejectPayment }) {
+  const paymentStatus = PAYMENT_STATUS_LABELS[member.payment_status];
+  const isPending = member.payment_status === 'pending_review';
   return (
     <div className="fixed inset-0 bg-on-background/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -21,6 +23,70 @@ export function AdminViewModal({ member, onClose, onEdit, onResetAccount }) {
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Payment verification — bank-transfer registrations start
+              pending_review and need an admin decision before the member can
+              log in. Paystack registrations are already 'paid' by the time
+              they reach this modal. */}
+          {member.payment_method && (
+            <div className="p-4 bg-surface-container-low rounded-lg border border-outline-variant space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-label-md font-bold text-on-surface">Payment</p>
+                  <p className="text-label-sm text-on-surface-variant capitalize">
+                    {member.payment_method.replace('_', ' ')}
+                  </p>
+                </div>
+                {paymentStatus && (
+                  <span className={`px-3 py-1 rounded-full text-label-sm font-bold ${paymentStatus.className}`}>
+                    {paymentStatus.label}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {member.passport_photo_url && (
+                  <a
+                    href={member.passport_photo_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-label-sm text-primary hover:underline"
+                  >
+                    View ID Photo
+                  </a>
+                )}
+                {member.payment_proof_url && (
+                  <a
+                    href={member.payment_proof_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-label-sm text-primary hover:underline"
+                  >
+                    View Payment Proof
+                  </a>
+                )}
+              </div>
+
+              {isPending && (
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={onApprovePayment}
+                    className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onRejectPayment}
+                    className="px-3 py-1.5 border border-error/40 text-error rounded-lg text-label-sm hover:bg-error/10 transition-colors bg-transparent"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Portal account status + stopgap reset */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-container-low rounded-lg border border-outline-variant">
             <div className="flex items-center gap-3">

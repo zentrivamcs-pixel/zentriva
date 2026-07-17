@@ -11,8 +11,9 @@ const { getDb } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
-const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail } = require('../shared/validation');
-const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail } = require('../shared/email');
+const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail, cleanUrl } = require('../shared/validation');
+const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail } = require('../shared/email');
+const { handleUpload } = require('@vercel/blob/client');
 
 const RESET_TTL_MS = 30 * 60 * 1000; // password-reset links live 30 minutes
 
@@ -130,6 +131,12 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   const member = await repo.findByEmailWithPassword(db, email);
   if (!member || !auth.verifyPassword(String(password), member.password_hash)) {
     return res.status(401).json({ error: 'Incorrect email or password' });
+  }
+  if (member.payment_status === 'pending_review') {
+    return res.status(403).json({ error: 'Your bank transfer payment is still under review. You\'ll be able to log in once an admin approves it.' });
+  }
+  if (member.payment_status === 'rejected') {
+    return res.status(403).json({ error: 'Your payment could not be verified. Please contact support to complete your registration.' });
   }
   const token = auth.memberToken(member.id, member.token_version);
   res.json({ token, member: repo.sanitizeMember(member) });
@@ -253,14 +260,37 @@ app.post('/api/members', wrap(async (req, res) => {
     passwordHash = auth.hashPassword(String(body.password));
   }
 
-  const tx = await verifyPaystackPayment(value.payment_reference, value.membership_tier);
-  if (!tx) {
-    return res.status(402).json({ error: 'Payment could not be verified' });
+  // Two ways to pay: a verified Paystack charge (member logs in right away),
+  // or a bank transfer with an uploaded proof image (account is created but
+  // login is gated until an admin approves the proof from the dashboard).
+  const isBankTransfer = body.payment_method === 'bank_transfer';
+  let tx;
+  let paymentMeta;
+  if (isBankTransfer) {
+    const proofUrl = cleanUrl(body.payment_proof_url);
+    if (!proofUrl) {
+      return res.status(400).json({ error: 'A payment proof image is required for bank transfer registrations' });
+    }
+    tx = {
+      reference: value.payment_reference,
+      amount: getTier(value.membership_tier).priceNaira * 100,
+      currency: 'NGN',
+      status: 'pending',
+      channel: 'bank_transfer',
+      paid_at: null,
+    };
+    paymentMeta = { method: 'bank_transfer', status: 'pending_review', proofUrl };
+  } else {
+    tx = await verifyPaystackPayment(value.payment_reference, value.membership_tier);
+    if (!tx) {
+      return res.status(402).json({ error: 'Payment could not be verified' });
+    }
+    paymentMeta = { method: 'paystack', status: 'paid', proofUrl: null };
   }
 
   try {
     // Atomic: member row + membership number + password + payment record.
-    const created = await repo.createMember(db, value, tx, passwordHash);
+    const created = await repo.createMember(db, value, tx, passwordHash, paymentMeta);
 
     // Membership confirmation email — best-effort, never fails a paid
     // registration (sendRegistrationEmail never throws).
@@ -301,6 +331,55 @@ app.post('/api/members/:id/reset', requireAdmin, wrap(async (req, res) => {
   if (!member) return res.status(404).json({ error: 'Not found' });
   res.json(repo.sanitizeMember(member));
 }));
+
+// Approves or rejects a pending bank-transfer registration's payment proof.
+// Approving unblocks the member's portal login; rejecting leaves it locked.
+app.post('/api/members/:id/payment', requireAdmin, wrap(async (req, res) => {
+  const { decision } = req.body || {};
+  if (decision !== 'approve' && decision !== 'reject') {
+    return res.status(400).json({ error: 'decision must be "approve" or "reject"' });
+  }
+  const status = decision === 'approve' ? 'paid' : 'rejected';
+  const member = await repo.setPaymentStatus(db, req.params.id, status);
+  if (!member) return res.status(404).json({ error: 'Not found' });
+  if (decision === 'approve') {
+    await sendPaymentApprovedEmail(member);
+  } else {
+    await sendPaymentRejectedEmail(member);
+  }
+  res.json(repo.sanitizeMember(member));
+}));
+
+// --- File uploads (Vercel Blob) --------------------------------------------------
+
+const UPLOAD_ALLOWED_PREFIXES = ['passports/', 'payment-proofs/'];
+const UPLOAD_ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5MB
+
+// Issues short-lived client tokens for direct-to-Blob uploads (passport
+// photos, payment proof). The file itself never passes through this server.
+app.post('/api/uploads', async (req, res) => {
+  try {
+    const jsonResponse = await handleUpload({
+      body: req.body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!UPLOAD_ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+          throw new Error('Uploads are only allowed under passports/ or payment-proofs/');
+        }
+        return {
+          allowedContentTypes: UPLOAD_ALLOWED_CONTENT_TYPES,
+          maximumSizeInBytes: UPLOAD_MAX_BYTES,
+          addRandomSuffix: true,
+        };
+      },
+    });
+    res.json(jsonResponse);
+  } catch (err) {
+    console.error('POST /api/uploads error:', err);
+    res.status(400).json({ error: err.message || 'Upload token request failed' });
+  }
+});
 
 // --- Paystack webhook -----------------------------------------------------------
 

@@ -56,6 +56,15 @@ function cleanEmail(value) {
   return email.toLowerCase();
 }
 
+// Vercel Blob upload URLs only — https, no embedded whitespace/control
+// characters. Used for passport photos and bank-transfer payment proof.
+const BLOB_URL_RE = /^https:\/\/[^\s"'<>]+$/;
+function cleanUrl(value, max = 500) {
+  const url = cleanString(value, max);
+  if (!url || !BLOB_URL_RE.test(url)) return null;
+  return url;
+}
+
 // Validates a phone number against its own country's numbering plan and
 // normalizes it to E.164 (e.g. "+2348012345678") so every stored number is
 // in one unambiguous format. A number typed without a country code is
@@ -115,6 +124,12 @@ const FIELD_SPECS = {
     clean: (v) => (typeof v === 'string' && REFERENCE_RE.test(v.trim()) ? v.trim() : null),
     required: true,
   },
+  // ID photo for the membership card/verification — uploaded to Vercel Blob
+  // client-side before the registration is submitted.
+  passport_photo_url: { clean: (v) => cleanUrl(v), required: true },
+  // Only required for bank-transfer registrations — checked in the route
+  // handler (conditional on payment_method), not here.
+  payment_proof_url: { clean: (v) => cleanUrl(v) },
 };
 
 // Cleans every known field; unknown keys are dropped.
