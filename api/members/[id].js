@@ -1,8 +1,12 @@
-// /api/members/:id  — PUT (update), DELETE (remove)
-const { COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody } = require('../_lib');
+// /api/members/:id  — PUT (update), DELETE (remove). Admin only.
+const {
+  COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody, requireAdmin,
+} = require('../_lib');
 
 module.exports = async (req, res) => {
   try {
+    if (!requireAdmin(req, res)) return;
+
     const db = getClient();
     await ensureSchema(db);
 

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import '../styles/tailwind.css';
 import AdminSideNav from './AdminSideNav';
 import AdminTopNav from './AdminTopNav';
 import { AdminViewModal, AdminEditModal } from './AdminModals';
 import { EDIT_FIELDS } from './adminHelpers';
+import { adminApi } from '../shared/api';
 
 // Fetches the member list once and shares it (plus CRUD handlers and the
 // view/edit modals) with every admin page via Outlet context, so switching
@@ -18,32 +19,41 @@ function AdminLayout({ onLogout }) {
   const [saving, setSaving] = useState(false);
   const [viewing, setViewing] = useState(null);
 
-  useEffect(() => { loadMembers(); }, []);
+  // Mobile: the sidebar becomes a slide-in drawer toggled from the top nav.
+  const [navOpen, setNavOpen] = useState(false);
 
-  const loadMembers = async () => {
+  // An expired/invalid token means every call will 401 — drop back to login.
+  const handleAuthError = useCallback((error) => {
+    if (error.status === 401) {
+      onLogout();
+      return true;
+    }
+    return false;
+  }, [onLogout]);
+
+  const loadMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/members');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await adminApi('/api/members');
       setMembers(data || []);
     } catch (error) {
       console.error('Error loading members:', error);
-      alert('Error loading data from database');
+      if (!handleAuthError(error)) alert('Error loading data from database');
     } finally {
       setLoading(false);
     }
-  };
+  }, [handleAuthError]);
+
+  useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const handleDelete = async (member) => {
     if (!window.confirm(`Delete ${member.full_name}? This cannot be undone.`)) return;
     try {
-      const response = await fetch(`/api/members/${member.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await adminApi(`/api/members/${member.id}`, { method: 'DELETE' });
       setMembers((prev) => prev.filter((m) => m.id !== member.id));
     } catch (error) {
       console.error('Error deleting member:', error);
-      alert('Failed to delete member');
+      if (!handleAuthError(error)) alert('Failed to delete member');
     }
   };
 
@@ -72,18 +82,15 @@ function AdminLayout({ onLogout }) {
           ? editForm[name].split(',').map((s) => s.trim()).filter(Boolean)
           : editForm[name];
       });
-      const response = await fetch(`/api/members/${editing.id}`, {
+      const updated = await adminApi(`/api/members/${editing.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const updated = await response.json();
       setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       setEditing(null);
     } catch (error) {
       console.error('Error updating member:', error);
-      alert('Failed to save changes');
+      if (!handleAuthError(error)) alert('Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -91,10 +98,14 @@ function AdminLayout({ onLogout }) {
 
   return (
     <div className="admin-portal bg-background text-on-background min-h-screen">
-      <AdminSideNav onLogout={onLogout} />
+      <AdminSideNav
+        onLogout={onLogout}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+      />
 
       <div className="md:ml-64">
-        <AdminTopNav />
+        <AdminTopNav onMenuToggle={() => setNavOpen((open) => !open)} />
         <main className="p-margin-mobile md:p-margin-desktop space-y-gutter">
           <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete }} />
         </main>

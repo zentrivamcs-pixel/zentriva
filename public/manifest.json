@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Zentriva",
+  "name": "Zentriva Multipurpose Cooperative Society",
+  "description": "Skills training, mentorship, and community-based economic empowerment.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#131b2e",
   "background_color": "#ffffff"
 }

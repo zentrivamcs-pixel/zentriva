@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import AdminDirectoryPdf from './AdminDirectoryPdf';
+import { exportDirectoryPdf } from './exportDirectoryPdf';
 import { countWhere, tallyScalar, tallyArray, monthlySignups, formatDate, buildMembersFilterUrl } from './adminHelpers';
 import AdminPieChart from './AdminPieChart';
 import AdminBarChart from './AdminBarChart';
@@ -63,6 +62,16 @@ const CategoryBadge = ({ category }) => {
 
 function AdminOverview() {
   const { members, loading, setViewing, openEdit } = useOutletContext();
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const handleExportPdf = async () => {
+    setPdfLoading(true);
+    try {
+      await exportDirectoryPdf(members);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const analytics = useMemo(() => ({
     total: members.length,
@@ -113,18 +122,15 @@ function AdminOverview() {
           <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Executive Dashboard</h2>
           <p className="text-on-surface-variant text-body-md">Overview of Zentriva Cooperative Society operations.</p>
         </div>
-        <PDFDownloadLink document={<AdminDirectoryPdf data={members} />} fileName="zentriva-directory.pdf">
-          {({ loading: pdfLoading }) => (
-            <button
-              type="button"
-              disabled={pdfLoading}
-              className="px-4 py-2 bg-primary text-on-primary rounded-lg text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
-            >
-              <span className="material-symbols-outlined">download</span>
-              {pdfLoading ? 'Preparing…' : 'Export PDF'}
-            </button>
-          )}
-        </PDFDownloadLink>
+        <button
+          type="button"
+          disabled={pdfLoading}
+          onClick={handleExportPdf}
+          className="px-4 py-2 bg-primary text-on-primary rounded-lg text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
+        >
+          <span className="material-symbols-outlined">download</span>
+          {pdfLoading ? 'Preparing…' : 'Export PDF'}
+        </button>
       </div>
 
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mt-gutter">
@@ -201,27 +207,20 @@ function AdminOverview() {
         <div className="bg-primary-container p-8 rounded-xl shadow-lg flex flex-col text-on-primary">
           <h4 className="font-headline-md mb-6 border-b border-outline-variant/20 pb-4">Quick Actions</h4>
           <div className="space-y-4">
-            <PDFDownloadLink
-              document={<AdminDirectoryPdf data={members} />}
-              fileName="zentriva-directory.pdf"
-              className="block no-underline text-on-primary"
+            <button
+              type="button"
+              disabled={pdfLoading}
+              onClick={handleExportPdf}
+              className="w-full bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 p-4 rounded-lg flex items-center gap-4 transition-colors group disabled:opacity-60 text-on-primary"
             >
-              {({ loading: pdfLoading }) => (
-                <button
-                  type="button"
-                  disabled={pdfLoading}
-                  className="w-full bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 p-4 rounded-lg flex items-center gap-4 transition-colors group disabled:opacity-60"
-                >
-                  <div className="p-2 bg-secondary-fixed text-on-secondary-fixed rounded-lg group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined">description</span>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-label-md text-label-md">{pdfLoading ? 'Preparing…' : 'Export Directory PDF'}</p>
-                    <p className="text-label-sm text-on-primary-container">Full member list, one page per entry</p>
-                  </div>
-                </button>
-              )}
-            </PDFDownloadLink>
+              <div className="p-2 bg-secondary-fixed text-on-secondary-fixed rounded-lg group-hover:scale-110 transition-transform">
+                <span className="material-symbols-outlined">description</span>
+              </div>
+              <div className="text-left">
+                <p className="font-label-md text-label-md">{pdfLoading ? 'Preparing…' : 'Export Directory PDF'}</p>
+                <p className="text-label-sm text-on-primary-container">Full member list, one page per entry</p>
+              </div>
+            </button>
 
             <Link
               to="/admin/members"

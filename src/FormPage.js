@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getTier } from './shared/membershipTiers';
+import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
 
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
@@ -88,13 +88,35 @@ const initialFormData = {
 
 function FormPage() {
   const [searchParams] = useSearchParams();
-  const tier = getTier(searchParams.get('tier'));
+  // The ?tier= query param (set by the homepage tier CTAs) picks the initial
+  // tier, but it stays changeable on the form itself.
+  const [tierKey, setTierKey] = useState(() => getTier(searchParams.get('tier')).key);
+  const tier = getTier(tierKey);
   const REGISTRATION_FEE_NAIRA = tier.priceNaira;
 
   const [formData, setFormData] = useState(initialFormData);
   const [dobParts, setDobParts] = useState({ day: '', month: '', year: '' });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  // Set when payment succeeded but the registration failed to save — the
+  // reference must stay visible so the member can recover or retry.
+  const [saveFailure, setSaveFailure] = useState(null);
+  const [referenceCopied, setReferenceCopied] = useState(false);
+  // Kept after a successful save so the thank-you screen can show it — the
+  // member needs it to activate their portal account.
+  const [lastReference, setLastReference] = useState('');
+
+  // Paystack's inline script is only needed on this page, so it's injected
+  // here instead of shipping in index.html on every page of the site.
+  useEffect(() => {
+    if (window.PaystackPop || document.getElementById('paystack-inline-js')) return;
+    const script = document.createElement('script');
+    script.id = 'paystack-inline-js';
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   const handleDobPartChange = (part) => (e) => {
     const nextParts = { ...dobParts, [part]: e.target.value };
@@ -182,22 +204,49 @@ function FormPage() {
 
       // Success! Reset the form and show the thank-you / WhatsApp screen.
       setFormData(initialFormData);
+      setSaveFailure(null);
+      setLastReference(paymentReference);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert(
-        `❌ Error: ${error.message}\n\nYour payment of ₦${REGISTRATION_FEE_NAIRA.toLocaleString()} was received — ` +
-        `please contact us with your payment reference (${paymentReference}) so we can complete your registration.`
-      );
+      // The money was taken but the record didn't save. Never hide the
+      // reference behind a dismissable alert — keep it on screen until
+      // the retry succeeds or the member writes it down.
+      setSaveFailure({ reference: paymentReference, message: error.message });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleCopyReference = async () => {
+    try {
+      await navigator.clipboard.writeText(saveFailure.reference);
+      setReferenceCopied(true);
+      setTimeout(() => setReferenceCopied(false), 2000);
+    } catch {
+      // Clipboard denied — the reference is still visible to copy manually.
+    }
+  };
+
+  const handleRetrySave = () => {
+    setSubmitting(true);
+    submitMember(saveFailure.reference);
+  };
+
   // Triggers the Paystack checkout; the form is only saved once payment succeeds.
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Checkbox groups can't use the native `required` attribute (it would
+    // demand every box) — enforce "at least one" here before taking payment.
+    if (formData.employmentStatus.length === 0) {
+      setValidationError('Please select at least one option under "Current Status" in the Employment section.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setValidationError('');
 
     if (!PAYSTACK_PUBLIC_KEY || !window.PaystackPop) {
       alert('❌ Payment could not be loaded. Please check your connection and try again, or contact the administrator.');
@@ -233,6 +282,16 @@ function FormPage() {
             WhatsApp group to stay connected with other members.
           </p>
 
+          {lastReference && (
+            <div className="reference-note">
+              <p>
+                Your payment reference is <strong>{lastReference}</strong>.
+                Keep it safe — you'll use it (with your email) to activate your
+                account on the <a href="/member">Member Portal</a>.
+              </p>
+            </div>
+          )}
+
           {WHATSAPP_GROUP_URL ? (
             <a
               className="whatsapp-button"
@@ -260,14 +319,72 @@ function FormPage() {
     );
   }
 
+  // Payment went through but the registration failed to save — show a
+  // persistent recovery screen instead of losing the reference in an alert.
+  if (saveFailure) {
+    return (
+      <div className="form-container">
+        <div className="success-screen">
+          <div className="success-icon">⚠️</div>
+          <h1>Payment received — one more step</h1>
+          <p className="success-message">
+            Your payment of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} was received, but saving your
+            registration failed ({saveFailure.message}). Your money is safe.
+          </p>
+          <div className="reference-note error">
+            <p>
+              Your payment reference: <strong>{saveFailure.reference}</strong>
+            </p>
+            <button type="button" className="copy-reference-button" onClick={handleCopyReference}>
+              {referenceCopied ? '✓ Copied' : 'Copy reference'}
+            </button>
+          </div>
+          <p className="success-message">
+            Try submitting again below — your payment will not be charged twice.
+            If it keeps failing, contact us with the reference above and we'll
+            complete your registration manually.
+          </p>
+          <button
+            type="button"
+            className="submit-another-button"
+            onClick={handleRetrySave}
+            disabled={submitting}
+          >
+            {submitting ? 'Retrying…' : 'Retry submission'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="form-container">
       <h1>🏛️ Zentriva Business & Professional Directory</h1>
       <p className="subtitle">Help us build a community of support and collaboration</p>
 
-      <p className="selected-tier-badge">
-        Selected Plan: <strong>{tier.name}</strong> — ₦{REGISTRATION_FEE_NAIRA.toLocaleString()}/year
-      </p>
+      {/* Tier selection — pre-set by the homepage CTA, changeable here */}
+      <div className="tier-selector" role="radiogroup" aria-label="Membership tier">
+        {Object.values(MEMBERSHIP_TIERS).map((t) => (
+          <label
+            key={t.key}
+            className={`tier-option ${tierKey === t.key ? 'selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name="membershipTier"
+              value={t.key}
+              checked={tierKey === t.key}
+              onChange={() => setTierKey(t.key)}
+            />
+            <span className="tier-option-name">{t.name}</span>
+            <span className="tier-option-price">₦{t.priceNaira.toLocaleString()}/yr</span>
+          </label>
+        ))}
+      </div>
+
+      {validationError && (
+        <p className="form-validation-error" role="alert">⚠️ {validationError}</p>
+      )}
 
       <form onSubmit={handleSubmit}>
 

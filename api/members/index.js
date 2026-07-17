@@ -1,6 +1,7 @@
-// /api/members  — GET (list all), POST (create)
+// /api/members  — GET (list all, admin only), POST (create, payment-gated)
 const {
-  COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody, verifyPaystackPayment
+  COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody,
+  verifyPaystackPayment, buildMembershipId, requireAdmin,
 } = require('../_lib');
 
 module.exports = async (req, res) => {
@@ -9,6 +10,7 @@ module.exports = async (req, res) => {
     await ensureSchema(db);
 
     if (req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
       const result = await db.execute(
         'SELECT * FROM members ORDER BY datetime(created_at) DESC'
       );
@@ -22,8 +24,8 @@ module.exports = async (req, res) => {
         return res.status(402).json({ error: 'Payment reference is required' });
       }
 
-      const paid = await verifyPaystackPayment(body.payment_reference, body.membership_tier);
-      if (!paid) {
+      const tx = await verifyPaystackPayment(body.payment_reference, body.membership_tier);
+      if (!tx) {
         return res.status(402).json({ error: 'Payment could not be verified' });
       }
 
@@ -33,6 +35,32 @@ module.exports = async (req, res) => {
         args: toArgs(body)
       });
       const newId = Number(result.lastInsertRowid);
+
+      // Assign the human-readable membership number now that the id exists.
+      const membershipId = buildMembershipId(newId, body.membership_category);
+      await db.execute({
+        sql: 'UPDATE members SET membership_id = ? WHERE id = ?',
+        args: [membershipId, newId]
+      });
+
+      // Record the verified payment for the member's billing history.
+      try {
+        await db.execute({
+          sql: `INSERT INTO payments (member_id, reference, amount_kobo, currency, status, channel, description, paid_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(reference) DO UPDATE SET member_id = excluded.member_id`,
+          args: [
+            newId, tx.reference, tx.amount, tx.currency, tx.status,
+            tx.channel || null,
+            `${body.membership_tier || 'standard'} tier registration`,
+            tx.paid_at || tx.paidAt || null,
+          ]
+        });
+      } catch (payErr) {
+        // Payment history is best-effort — never fail the registration over it.
+        console.error('Failed to record payment history:', payErr);
+      }
+
       const created = await db.execute({
         sql: 'SELECT * FROM members WHERE id = ?',
         args: [newId]

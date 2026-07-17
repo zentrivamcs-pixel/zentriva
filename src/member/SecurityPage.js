@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
-import ImagePlaceholder from '../shared/ImagePlaceholder';
-import { twoFactorMethods, initialLoginSessions, recoveryEmailMasked } from './securityData';
+import { useMemberAuth } from './MemberAuthContext';
+import { memberApi } from '../shared/api';
 
-const MIN_PASSWORD_LENGTH = 12;
-
-function generateBackupCodes(count = 8) {
-  return Array.from({ length: count }, () =>
-    Math.random().toString(36).slice(2, 6).toUpperCase() +
-    '-' +
-    Math.random().toString(36).slice(2, 6).toUpperCase()
-  );
-}
+// Matches the API's minimum (see /api/me/password).
+const MIN_PASSWORD_LENGTH = 8;
 
 function SecurityPage() {
+  const { view } = useMemberAuth();
   const [passwordForm, setPasswordForm] = useState({
     current: '',
     next: '',
@@ -20,17 +14,14 @@ function SecurityPage() {
   });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  const [sessions, setSessions] = useState(initialLoginSessions);
-
-  const [emailVerifying, setEmailVerifying] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handlePasswordField = (field) => (e) => {
     setPasswordForm((prev) => ({ ...prev, [field]: e.target.value }));
     setPasswordSuccess(false);
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordSuccess(false);
 
@@ -47,41 +38,37 @@ function SecurityPage() {
       return;
     }
 
+    setSaving(true);
     setPasswordError('');
-    setPasswordSuccess(true);
-    setPasswordForm({ current: '', next: '', confirm: '' });
+    try {
+      await memberApi('/api/me/password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: passwordForm.current,
+          new_password: passwordForm.next,
+        }),
+      });
+      setPasswordSuccess(true);
+      setPasswordForm({ current: '', next: '', confirm: '' });
+    } catch (error) {
+      setPasswordError(error.message || 'Failed to update password.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleLogoutOthers = () => {
-    setSessions((prev) => prev.filter((s) => s.isCurrent));
-  };
-
-  const handleVerifyEmail = () => {
-    setEmailVerifying(true);
-  };
-
-  const handleDownloadBackupCodes = () => {
-    const codes = generateBackupCodes();
-    const blob = new Blob(
-      [`Zentriva Backup Codes\nGenerated ${new Date().toISOString()}\n\n${codes.join('\n')}\n`],
-      { type: 'text/plain' }
-    );
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'zentriva-backup-codes.txt';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const otherSessionsCount = sessions.filter((s) => !s.isCurrent).length;
+  const accountFacts = [
+    { icon: 'mail', label: 'Login Email', value: view.email },
+    { icon: 'badge', label: 'Membership ID', value: view.membershipId },
+    { icon: 'schedule', label: 'Session Length', value: 'Signed in for up to 30 days on this device' },
+  ];
 
   return (
     <>
       <div className="mb-8">
         <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Security &amp; Privacy</h2>
         <p className="font-body-md text-body-md text-secondary">
-          Manage your credentials, authentication methods, and monitor account activity.
+          Manage your password and review how your account is protected.
         </p>
       </div>
 
@@ -102,8 +89,9 @@ function SecurityPage() {
                 </label>
                 <input
                   className="w-full h-12 px-4 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                  placeholder="••••••••••••"
+                  placeholder="••••••••"
                   type="password"
+                  autoComplete="current-password"
                   value={passwordForm.current}
                   onChange={handlePasswordField('current')}
                 />
@@ -115,8 +103,9 @@ function SecurityPage() {
                   </label>
                   <input
                     className="w-full h-12 px-4 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                    placeholder={`Minimum ${MIN_PASSWORD_LENGTH} chars`}
+                    placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
                     type="password"
+                    autoComplete="new-password"
                     value={passwordForm.next}
                     onChange={handlePasswordField('next')}
                   />
@@ -129,6 +118,7 @@ function SecurityPage() {
                     className="w-full h-12 px-4 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                     placeholder="Confirm password"
                     type="password"
+                    autoComplete="new-password"
                     value={passwordForm.confirm}
                     onChange={handlePasswordField('confirm')}
                   />
@@ -137,7 +127,7 @@ function SecurityPage() {
             </div>
 
             {passwordError && (
-              <p className="font-label-sm text-label-sm text-error">{passwordError}</p>
+              <p className="font-label-sm text-label-sm text-error" role="alert">{passwordError}</p>
             )}
             {passwordSuccess && (
               <p className="font-label-sm text-label-sm text-on-tertiary-container">
@@ -147,16 +137,17 @@ function SecurityPage() {
 
             <div className="pt-4 flex justify-end">
               <button
-                className="px-8 py-3 bg-primary text-on-primary font-bold rounded-lg shadow-md hover:bg-opacity-90 active:scale-95 transition-all"
+                className="px-8 py-3 bg-primary text-on-primary font-bold rounded-lg shadow-md hover:bg-opacity-90 active:scale-95 transition-all disabled:opacity-60"
                 type="submit"
+                disabled={saving}
               >
-                Update Password
+                {saving ? 'Updating…' : 'Update Password'}
               </button>
             </div>
           </form>
         </section>
 
-        {/* 2FA Status */}
+        {/* Account overview */}
         <section className="lg:col-span-5 bg-primary-container text-on-primary-container rounded-xl p-8 shadow-lg relative overflow-hidden">
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-surface-container-highest opacity-10 rounded-full" />
           <div className="relative z-10">
@@ -170,142 +161,32 @@ function SecurityPage() {
                 </span>
               </div>
               <span className="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm rounded-full font-bold">
-                ACTIVE
+                {view.active ? 'ACTIVE' : 'RENEWAL DUE'}
               </span>
             </div>
-            <h3 className="font-headline-md text-headline-md mb-2">Two-Factor Auth</h3>
+            <h3 className="font-headline-md text-headline-md mb-2">Account Overview</h3>
             <p className="font-body-md text-body-md opacity-80 mb-8">
-              Your account is currently protected with a secondary authentication layer via
-              Authenticator App.
+              Your account is protected with a password only you know. Passwords
+              are stored securely and never shown to anyone — including Zentriva staff.
             </p>
             <div className="space-y-4">
-              {twoFactorMethods.map((method) => (
+              {accountFacts.map((fact) => (
                 <div
-                  key={method.key}
-                  className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10"
+                  key={fact.label}
+                  className="flex items-center gap-3 p-4 bg-white/5 rounded-lg border border-white/10"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined opacity-60">{method.icon}</span>
-                    <span className="font-label-md text-label-md">{method.label}</span>
+                  <span className="material-symbols-outlined opacity-60 flex-shrink-0">{fact.icon}</span>
+                  <div className="min-w-0">
+                    <p className="font-label-sm text-label-sm opacity-60">{fact.label}</p>
+                    <p className="font-label-md text-label-md truncate">{fact.value}</p>
                   </div>
-                  {method.enabled ? (
-                    <span className="material-symbols-outlined text-tertiary-fixed">check_circle</span>
-                  ) : (
-                    <span className="material-symbols-outlined opacity-40">chevron_right</span>
-                  )}
                 </div>
               ))}
             </div>
-            <button className="w-full mt-8 py-3 bg-transparent text-on-primary-container border border-white/20 hover:bg-white/10 transition-colors rounded-lg font-label-md text-label-md">
-              Manage Methods
-            </button>
-          </div>
-        </section>
-
-        {/* Login History */}
-        <section className="lg:col-span-12 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
-          <div className="px-8 py-6 border-b border-outline-variant flex justify-between items-center flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary p-2 bg-surface-container rounded-lg">
-                history
-              </span>
-              <h3 className="font-headline-md text-headline-md">Login History</h3>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogoutOthers}
-              disabled={otherSessionsCount === 0}
-              className="bg-transparent text-primary font-label-md text-label-md hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:no-underline"
-            >
-              Log out all other sessions
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
-                <tr>
-                  <th className="px-8 py-4">Browser / Device</th>
-                  <th className="px-8 py-4">Location</th>
-                  <th className="px-8 py-4">IP Address</th>
-                  <th className="px-8 py-4">Status</th>
-                  <th className="px-8 py-4">Last Activity</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant">
-                {sessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-surface-container/30 transition-colors">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-secondary">{session.icon}</span>
-                        <div>
-                          <p className="font-label-md text-label-md text-on-surface">{session.device}</p>
-                          <p className="font-label-sm text-label-sm text-secondary">{session.sublabel}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 font-body-md text-body-md">{session.location}</td>
-                    <td className="px-8 py-5 font-label-sm text-label-sm text-secondary">{session.ip}</td>
-                    <td className="px-8 py-5">
-                      <span
-                        className={`px-2 py-1 text-label-sm font-bold rounded-full ${
-                          session.status === 'ACTIVE'
-                            ? 'bg-tertiary-container text-on-tertiary-container'
-                            : 'bg-surface-container text-secondary'
-                        }`}
-                      >
-                        {session.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5 font-body-md text-body-md">{session.lastActivity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-8 py-4 bg-surface-container-low text-center">
-            <button className="bg-transparent font-label-md text-label-md text-secondary hover:text-primary transition-colors flex items-center gap-2 mx-auto">
-              View full activity log <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          </div>
-        </section>
-
-        {/* Security Advisory */}
-        <section className="lg:col-span-12 glass-card rounded-xl p-8 border border-outline-variant flex flex-col md:flex-row items-center gap-8">
-          <div className="w-full md:w-1/3 aspect-video rounded-lg overflow-hidden bg-surface-container shadow-inner">
-            <ImagePlaceholder
-              icon="shield"
-              alt="Security advisory illustration"
-              shape="rect"
-              className="w-full h-full text-[40px]"
-            />
-          </div>
-          <div className="flex-grow">
-            <h4 className="font-headline-md text-headline-md mb-4">Security Advisory</h4>
-            <p className="font-body-md text-body-md text-secondary mb-6">
-              We recommend updating your recovery email every 6 months to ensure you never lose
-              access to your premium benefits. Your current recovery email is{' '}
-              <span className="text-on-surface font-bold">{recoveryEmailMasked}</span>.
+            <p className="font-label-sm text-label-sm opacity-60 mt-8">
+              Two-factor authentication is on our roadmap and will appear here
+              when available.
             </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={handleVerifyEmail}
-                disabled={emailVerifying}
-                className="px-6 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-lg active:scale-95 transition-transform disabled:opacity-60"
-              >
-                {emailVerifying ? 'Verification Sent' : 'Verify Email'}
-              </button>
-              <button
-                onClick={handleDownloadBackupCodes}
-                className="bg-transparent px-6 py-2 border border-outline text-on-surface-variant font-label-md text-label-md rounded-lg hover:bg-surface-container transition-colors"
-              >
-                Download Backup Codes
-              </button>
-              {emailVerifying && (
-                <span className="font-label-sm text-label-sm text-on-tertiary-container">
-                  Check your inbox for a confirmation link.
-                </span>
-              )}
-            </div>
           </div>
         </section>
       </div>

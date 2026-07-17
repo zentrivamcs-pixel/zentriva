@@ -2,6 +2,7 @@
 // Files prefixed with "_" are not treated as routes by Vercel.
 const { createClient } = require('@libsql/client/web');
 const { getTier } = require('../shared/membershipTiers');
+const auth = require('../shared/authUtils');
 
 const ARRAY_FIELDS = ['employment_status', 'skills', 'services_needed', 'offer_category'];
 
@@ -16,11 +17,27 @@ const COLUMNS = [
   'payment_reference'
 ];
 
+// Profile fields a logged-in member may update about themselves (PUT /api/me).
+const PROFILE_EDITABLE_FIELDS = [
+  'phone_number', 'whatsapp_number', 'profession', 'company_name', 'job_title',
+  'work_description', 'business_name', 'business_type', 'products_services',
+  'business_location', 'business_phone', 'social_media',
+];
+
+// Fields exposed to other members in the directory (consented data only —
+// the registration consent covers sharing these for networking/referrals).
+const DIRECTORY_FIELDS = [
+  'id', 'full_name', 'profession', 'company_name', 'job_title',
+  'business_name', 'business_type', 'products_services', 'business_location',
+  'business_phone', 'social_media', 'skills', 'offer_category',
+  'offer_discounts', 'discount_details', 'email', 'phone_number', 'membership_tier',
+];
+
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 // Confirms a Paystack transaction actually succeeded, for the right amount
-// (the price of the given membership tier) and currency, before we let it
-// count as payment for a registration.
+// (the price of the given membership tier) and currency. Returns the
+// transaction object on success so callers can record the payment, or null.
 async function verifyPaystackPayment(reference, membershipTierKey) {
   if (!PAYSTACK_SECRET_KEY) {
     throw new Error('PAYSTACK_SECRET_KEY is not configured on the server');
@@ -32,12 +49,13 @@ async function verifyPaystackPayment(reference, membershipTierKey) {
   );
   const result = await response.json();
   const tx = result && result.data;
-  return !!(
+  const ok = !!(
     result && result.status && tx &&
     tx.status === 'success' &&
     tx.amount === expectedKobo &&
     tx.currency === 'NGN'
   );
+  return ok ? tx : null;
 }
 
 let client;
@@ -100,21 +118,21 @@ async function ensureSchema(db) {
     )
   `);
 
-  // Migrations for tables created before these columns existed.
-  try {
-    await db.execute('ALTER TABLE members ADD COLUMN payment_reference TEXT');
-  } catch {
-    // Column already exists — ignore.
-  }
-  try {
-    await db.execute('ALTER TABLE members ADD COLUMN membership_tier TEXT');
-  } catch {
-    // Column already exists — ignore.
-  }
-  try {
-    await db.execute('ALTER TABLE members ADD COLUMN membership_category TEXT');
-  } catch {
-    // Column already exists — ignore.
+  // Migrations for tables created before these columns existed. Each ALTER
+  // fails harmlessly if the column already exists.
+  const migrations = [
+    'ALTER TABLE members ADD COLUMN payment_reference TEXT',
+    'ALTER TABLE members ADD COLUMN membership_tier TEXT',
+    'ALTER TABLE members ADD COLUMN membership_category TEXT',
+    'ALTER TABLE members ADD COLUMN password_hash TEXT',
+    'ALTER TABLE members ADD COLUMN membership_id TEXT',
+  ];
+  for (const sql of migrations) {
+    try {
+      await db.execute(sql);
+    } catch {
+      // Column already exists — ignore.
+    }
   }
 
   // Prevent the same Paystack payment from being used for more than one registration.
@@ -123,7 +141,32 @@ async function ensureSchema(db) {
     ON members(payment_reference) WHERE payment_reference IS NOT NULL
   `);
 
+  // Payment history — written when a registration is verified and by the
+  // Paystack webhook, read by the member Billing page and the admin CMS.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id     INTEGER,
+      reference     TEXT UNIQUE,
+      amount_kobo   INTEGER,
+      currency      TEXT,
+      status        TEXT,
+      channel       TEXT,
+      description   TEXT,
+      paid_at       TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   schemaReady = true;
+}
+
+// "ZNTR-1042-EXE-2026" — stable, human-readable membership number derived
+// from the row id, category, and registration year.
+function buildMembershipId(id, membershipCategory, createdAt) {
+  const year = (createdAt || new Date().toISOString()).slice(0, 4);
+  const cat = (membershipCategory || '').startsWith('Executive') ? 'EXE' : 'MBR';
+  return `ZNTR-${String(1000 + Number(id))}-${cat}-${year}`;
 }
 
 function deserialize(row) {
@@ -137,6 +180,23 @@ function deserialize(row) {
   }
   out.consent = !!row.consent;
   if (typeof out.id === 'bigint') out.id = Number(out.id);
+  if (typeof out.member_id === 'bigint') out.member_id = Number(out.member_id);
+  return out;
+}
+
+// A member row that is safe to send to the member it belongs to.
+function sanitizeMember(row) {
+  const out = deserialize(row);
+  delete out.password_hash;
+  out.has_password = !!row.password_hash;
+  return out;
+}
+
+// A member row reduced to the directory-safe field set.
+function toDirectoryEntry(row) {
+  const full = deserialize(row);
+  const out = {};
+  for (const field of DIRECTORY_FIELDS) out[field] = full[field] ?? null;
   return out;
 }
 
@@ -162,7 +222,23 @@ function parseBody(req) {
   return req.body;
 }
 
+function requireAdmin(req, res) {
+  if (auth.isAdmin(req)) return true;
+  res.status(401).json({ error: 'Admin authentication required' });
+  return false;
+}
+
+// Returns the member id from the request's Bearer token, or responds 401.
+function requireMember(req, res) {
+  const id = auth.getMemberId(req);
+  if (id) return id;
+  res.status(401).json({ error: 'Login required' });
+  return null;
+}
+
 module.exports = {
-  ARRAY_FIELDS, COLUMNS, getClient, ensureSchema, deserialize, toArgs, parseBody,
-  verifyPaystackPayment
+  ARRAY_FIELDS, COLUMNS, PROFILE_EDITABLE_FIELDS, DIRECTORY_FIELDS,
+  getClient, ensureSchema, deserialize, sanitizeMember, toDirectoryEntry,
+  toArgs, parseBody, verifyPaystackPayment, buildMembershipId,
+  requireAdmin, requireMember, auth,
 };

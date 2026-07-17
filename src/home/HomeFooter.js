@@ -1,5 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Logo from '../shared/Logo';
+import { SUPPORT_EMAIL } from '../shared/contact';
+
+const linkClass =
+  'font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors';
 
 function HomeFooter() {
   return (
@@ -16,17 +21,14 @@ function HomeFooter() {
         </p>
       </div>
       <div className="flex flex-wrap justify-center gap-8">
-        <a className="font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors" href="#privacy">
+        <Link className={linkClass} to="/privacy">
           Privacy Policy
-        </a>
-        <a className="font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors" href="#terms">
+        </Link>
+        <Link className={linkClass} to="/terms">
           Terms of Service
-        </a>
-        <a className="font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors" href="#support">
+        </Link>
+        <a className={linkClass} href={`mailto:${SUPPORT_EMAIL}`}>
           Contact Support
-        </a>
-        <a className="font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors" href="#security">
-          Security Overview
         </a>
       </div>
     </footer>

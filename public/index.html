@@ -4,11 +4,19 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#131b2e" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="Zentriva Multipurpose Cooperative Society — skills training, mentorship, and community-based economic empowerment for young people and professionals in Nigeria."
     />
+    <!-- Social sharing (Open Graph / Twitter) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Zentriva Multipurpose Cooperative Society" />
+    <meta property="og:description" content="Skilled. Empowered. Rooted in Purpose. Join a member-driven cooperative offering training, mentorship, and real economic opportunity." />
+    <meta property="og:image" content="%PUBLIC_URL%/logo512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Zentriva Multipurpose Cooperative Society" />
+    <meta name="twitter:description" content="Skilled. Empowered. Rooted in Purpose. Join a member-driven cooperative offering training, mentorship, and real economic opportunity." />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
@@ -20,7 +28,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <!-- Paystack's inline.js is injected on demand by the registration form -->
+    <style>
+      /* Material Symbols render their ligature names as text until the font
+         loads — hide icon text until then instead of flashing raw words. */
+      .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        visibility: visible;
+      }
+    </style>
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.

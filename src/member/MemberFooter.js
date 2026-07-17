@@ -1,5 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import Logo from '../shared/Logo';
+import { SUPPORT_EMAIL } from '../shared/contact';
+
+const linkClass =
+  'font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors';
 
 function MemberFooter() {
   return (
@@ -9,25 +14,16 @@ function MemberFooter() {
         Zentriva
       </span>
       <p className="font-label-sm text-label-sm text-secondary text-center">
-        © 2026 Zentriva Membership Systems. All rights reserved.
+        © 2026 Zentriva Multipurpose Cooperative Society. All rights reserved.
       </p>
       <div className="flex gap-6">
-        <a
-          className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors"
-          href="#privacy"
-        >
+        <Link className={linkClass} to="/privacy">
           Privacy Policy
-        </a>
-        <a
-          className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors"
-          href="#terms"
-        >
+        </Link>
+        <Link className={linkClass} to="/terms">
           Terms of Service
-        </a>
-        <a
-          className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors"
-          href="#support"
-        >
+        </Link>
+        <a className={linkClass} href={`mailto:${SUPPORT_EMAIL}`}>
           Contact Support
         </a>
       </div>

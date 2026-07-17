@@ -2,37 +2,38 @@ import React, { useState } from 'react';
 import '../styles/tailwind.css';
 import AdminLayout from './AdminLayout';
 import Logo from '../shared/Logo';
-
-const STORAGE_KEY = 'ctca_admin_authed';
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD;
+import { getAdminToken, setAdminToken, clearAdminToken, publicApi } from '../shared/api';
 
 function AdminGate() {
-  const [authed, setAuthed] = useState(
-    () => sessionStorage.getItem(STORAGE_KEY) === 'true'
-  );
+  const [authed, setAuthed] = useState(() => !!getAdminToken());
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!ADMIN_PASSWORD) {
-      setError('Admin password is not configured. Set REACT_APP_ADMIN_PASSWORD.');
-      return;
-    }
-
-    if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem(STORAGE_KEY, 'true');
+    setChecking(true);
+    setError('');
+    try {
+      // The password is verified server-side; the client only ever holds a
+      // short-lived signed session token.
+      const { token } = await publicApi('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      });
+      setAdminToken(token);
       setAuthed(true);
-      setError('');
-    } else {
-      setError('Incorrect password. Please try again.');
       setPassword('');
+    } catch (err) {
+      setError(err.status === 401 ? 'Incorrect password. Please try again.' : err.message);
+      setPassword('');
+    } finally {
+      setChecking(false);
     }
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearAdminToken();
     setAuthed(false);
     setPassword('');
   };
@@ -69,9 +70,10 @@ function AdminGate() {
 
           <button
             type="submit"
-            className="w-full mt-6 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity"
+            disabled={checking}
+            className="w-full mt-6 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            Unlock Dashboard
+            {checking ? 'Checking…' : 'Unlock Dashboard'}
           </button>
         </form>
       </div>

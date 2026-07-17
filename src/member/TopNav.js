@@ -1,18 +1,27 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import ImagePlaceholder from '../shared/ImagePlaceholder';
 import Logo from '../shared/Logo';
+import { useProfile } from './ProfileContext';
 
 const TOP_LINKS = [
   { to: '/member', label: 'Dashboard', end: true },
-  { href: '#members', label: 'Members' },
-  { href: '#benefits', label: 'Benefits' },
-  { href: '#events', label: 'Events' },
+  { to: '/member/directory', label: 'Directory' },
+  { to: '/member/billing', label: 'Billing' },
 ];
 
 function TopNav({ member }) {
+  const navigate = useNavigate();
+  const { avatarSrc } = useProfile();
   const [search, setSearch] = useState('');
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  // The portal search searches the member directory.
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    navigate(`/member/directory?q=${encodeURIComponent(search.trim())}`);
+    setMobileSearchOpen(false);
+  };
 
   const linkClass = ({ isActive }) =>
     `px-4 py-2 rounded-lg font-label-md text-label-md transition-all ${
@@ -27,37 +36,30 @@ function TopNav({ member }) {
         <div className="flex items-center gap-6 min-w-0">
           <Logo className="h-8 w-8 md:hidden" />
           <nav className="hidden md:flex items-center gap-1">
-            {TOP_LINKS.map((link) =>
-              link.to ? (
-                <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
-                  {link.label}
-                </NavLink>
-              ) : (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="px-4 py-2 rounded-lg font-label-md text-label-md text-secondary hover:text-primary hover:bg-surface-container transition-all"
-                >
-                  {link.label}
-                </a>
-              )
-            )}
+            {TOP_LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
+                {link.label}
+              </NavLink>
+            ))}
           </nav>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-3">
-          <div className="hidden lg:flex items-center bg-surface-container rounded-full px-4 py-1.5 border border-outline-variant focus-within:border-primary/40 transition-colors">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="hidden lg:flex items-center bg-surface-container rounded-full px-4 py-1.5 border border-outline-variant focus-within:border-primary/40 transition-colors"
+          >
             <span className="material-symbols-outlined text-secondary text-[20px]">
               search
             </span>
             <input
               className="bg-transparent border-none focus:ring-0 text-body-md text-on-surface w-48"
-              placeholder="Search portal..."
+              placeholder="Search directory..."
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+          </form>
 
           <button
             type="button"
@@ -72,24 +74,23 @@ function TopNav({ member }) {
 
           <div className="hidden sm:block h-6 w-px bg-outline-variant" />
 
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="bg-transparent relative p-2 text-secondary hover:text-primary transition-colors rounded-lg hover:bg-surface-container"
+          {/* Security stays reachable on mobile (it isn't in the bottom bar) */}
+          <NavLink
+            to="/member/security"
+            aria-label="Security settings"
+            title="Security settings"
+            className={({ isActive }) =>
+              `p-2 transition-colors rounded-lg hover:bg-surface-container ${
+                isActive ? 'text-primary bg-surface-container-highest' : 'text-secondary hover:text-primary'
+              }`
+            }
           >
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-error border border-surface-container-lowest" />
-          </button>
-          <button
-            type="button"
-            aria-label="Settings"
-            className="bg-transparent hidden sm:inline-flex p-2 text-secondary hover:text-primary transition-colors rounded-lg hover:bg-surface-container"
-          >
-            <span className="material-symbols-outlined">settings</span>
-          </button>
+            <span className="material-symbols-outlined">shield_person</span>
+          </NavLink>
 
-          <div className="flex items-center gap-2 pl-1">
+          <NavLink to="/member/profile" className="flex items-center gap-2 pl-1 no-underline">
             <ImagePlaceholder
+              src={avatarSrc}
               icon="person"
               alt={`${member.firstName}'s avatar`}
               shape="circle"
@@ -98,25 +99,28 @@ function TopNav({ member }) {
             <span className="hidden md:block font-label-md text-label-md text-primary">
               {member.firstName}
             </span>
-          </div>
+          </NavLink>
         </div>
       </div>
 
       {mobileSearchOpen && (
         <div className="lg:hidden px-margin-mobile pb-3">
-          <div className="flex items-center bg-surface-container rounded-full px-4 py-2 border border-outline-variant">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex items-center bg-surface-container rounded-full px-4 py-2 border border-outline-variant"
+          >
             <span className="material-symbols-outlined text-secondary text-[20px]">
               search
             </span>
             <input
               autoFocus
               className="bg-transparent border-none focus:ring-0 text-body-md text-on-surface w-full"
-              placeholder="Search portal..."
+              placeholder="Search directory..."
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-          </div>
+          </form>
         </div>
       )}
     </header>

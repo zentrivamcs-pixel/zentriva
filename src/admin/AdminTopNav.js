@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 // Submits to the Members page's own search/filter toolbar (via a ?q= query
 // param) rather than maintaining a second, disconnected search here.
-function AdminTopNav() {
+function AdminTopNav({ onMenuToggle }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
 
@@ -14,7 +14,17 @@ function AdminTopNav() {
   };
 
   return (
-    <header className="flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop md:ml-64 bg-surface-container-lowest sticky top-0 border-b border-outline-variant shadow-sm z-40">
+    <header className="flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop bg-surface-container-lowest sticky top-0 border-b border-outline-variant shadow-sm z-40 gap-3">
+      {/* Mobile menu toggle — the sidebar is a drawer below md */}
+      <button
+        type="button"
+        aria-label="Open navigation menu"
+        onClick={onMenuToggle}
+        className="bg-transparent md:hidden p-2 text-on-surface-variant hover:text-primary rounded-lg transition-colors"
+      >
+        <span className="material-symbols-outlined">menu</span>
+      </button>
+
       <form onSubmit={handleSubmit} className="flex items-center flex-1 max-w-xl">
         <div className="relative w-full focus-within:ring-2 focus-within:ring-primary rounded-lg transition-all">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
@@ -29,8 +39,8 @@ function AdminTopNav() {
           />
         </div>
       </form>
-      <div className="flex items-center gap-6 ml-6">
-        <div className="flex items-center gap-3 pl-6 border-l border-outline-variant">
+      <div className="flex items-center gap-6 ml-2 md:ml-6">
+        <div className="flex items-center gap-3 md:pl-6 md:border-l border-outline-variant">
           <div className="text-right hidden lg:block">
             <p className="text-label-md font-bold text-on-surface">Administrator</p>
             <p className="text-label-sm text-on-surface-variant">Zentriva CMS</p>

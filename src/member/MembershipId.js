@@ -1,16 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { currentMember } from './memberData';
-import { initialProfile } from './profileData';
-import { usageSummary, securityStatus, idFeatureCards } from './membershipCardData';
 import { downloadMembershipBadge, getMembershipCardPrintImages, CARD_WIDTH_MM, CARD_HEIGHT_MM } from './generateMembershipBadge';
 import { useProfile } from './ProfileContext';
+import { useMemberAuth } from './MemberAuthContext';
 import MembershipCardFront from './MembershipCardFront';
 import MembershipCardBack from './MembershipCardBack';
 import QrVerificationCode from './QrVerificationCode';
 import { buildMembershipQrValue } from './membershipQr';
 
 function MembershipId() {
+  const { view } = useMemberAuth();
   const [copied, setCopied] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -19,18 +17,10 @@ function MembershipId() {
   const [shareStatus, setShareStatus] = useState('');
   const { avatarSrc } = useProfile();
 
-  // The card's front/back, the download, and the print output all draw
-  // from this one object, so the contact row (email/phone) and photo show
-  // up identically everywhere the card appears.
-  const member = useMemo(
-    () => ({
-      ...currentMember,
-      avatarSrc,
-      email: initialProfile.email,
-      phone: initialProfile.phone,
-    }),
-    [avatarSrc]
-  );
+  // The card's front/back, the download, and the print output all draw from
+  // this one object, so the contact row (email/phone) and photo show up
+  // identically everywhere the card appears.
+  const member = useMemo(() => ({ ...view, avatarSrc }), [view, avatarSrc]);
 
   const qrValue = useMemo(() => buildMembershipQrValue(member), [member]);
 
@@ -90,6 +80,15 @@ function MembershipId() {
       setPrinting(false);
     }
   };
+
+  const cardDetails = [
+    ['Membership ID', member.membershipId],
+    ['Category', member.tierLabel],
+    ['Tier', member.tierBadge],
+    ['Date Issued', member.issuedDate],
+    ['Next Renewal', member.nextRenewal],
+    ['Status', member.active ? 'Active' : 'Renewal due'],
+  ];
 
   return (
     <>
@@ -195,62 +194,21 @@ function MembershipId() {
               </div>
             </div>
             <p className="text-xs text-secondary text-center">
-              Present this QR code to any Zentriva partner facility to verify your membership.
+              Present this QR code at Zentriva programs and partner venues to verify your membership.
             </p>
-            <div className="mt-4 pt-4 border-t border-outline-variant">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-secondary">Security Status</span>
-                <span className="text-on-tertiary-container font-bold flex items-center gap-1">
-                  <span className="w-2 h-2 bg-tertiary-fixed-dim rounded-full animate-pulse" />
-                  {securityStatus.label}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-secondary">Last Verified</span>
-                <span className="text-primary font-medium">{securityStatus.lastVerified}</span>
-              </div>
-            </div>
           </div>
 
           <div className="bg-surface-container-low border border-outline-variant rounded-xl p-6">
-            <h3 className="font-label-md font-bold text-primary mb-2">Usage Summary</h3>
-            <div className="space-y-4 mt-4">
-              {usageSummary.map((item) => (
-                <div key={item.key} className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full ${item.iconBg} flex items-center justify-center ${item.iconColor}`}
-                  >
-                    <span className="material-symbols-outlined text-sm">{item.icon}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">{item.title}</p>
-                    <p className="text-xs text-secondary">{item.subtitle}</p>
-                  </div>
-                  <span className="ml-auto font-bold text-primary">{item.value}</span>
+            <h3 className="font-label-md font-bold text-primary mb-2">Card Details</h3>
+            <div className="mt-4 divide-y divide-outline-variant/50">
+              {cardDetails.map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between py-3 gap-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-secondary">{label}</span>
+                  <span className="text-sm font-semibold text-primary text-right truncate">{value}</span>
                 </div>
               ))}
             </div>
-            <Link
-              to="/member"
-              className="block w-full mt-6 text-sm font-bold text-primary border-b border-primary/20 pb-1 hover:border-primary transition-all text-left"
-            >
-              View full activity history →
-            </Link>
           </div>
-        </div>
-
-        {/* Bottom info cards */}
-        <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-gutter">
-          {idFeatureCards.map((card) => (
-            <div
-              key={card.key}
-              className="bg-white p-6 rounded-xl border border-outline-variant shadow-sm hover:shadow-md transition-shadow"
-            >
-              <span className="material-symbols-outlined text-primary mb-3 block">{card.icon}</span>
-              <h4 className="font-label-md font-bold mb-2">{card.title}</h4>
-              <p className="text-xs text-secondary leading-relaxed">{card.description}</p>
-            </div>
-          ))}
         </div>
       </div>
     </>

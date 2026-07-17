@@ -2,9 +2,9 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { sidebarNav } from './navConfig';
 import Logo from '../shared/Logo';
-import { currentMember } from './memberData';
+import { SUPPORT_EMAIL } from '../shared/contact';
 
-function SideNav({ onLogout }) {
+function SideNav({ onLogout, tierLabel }) {
   return (
     <aside className="hidden md:flex print:hidden flex-col h-screen sticky top-0 p-gutter bg-primary-container text-on-primary-container w-64 shadow-md z-30">
       <div className="flex items-center gap-3 mb-10">
@@ -14,7 +14,7 @@ function SideNav({ onLogout }) {
             Zentriva Portal
           </h1>
           <p className="font-label-sm text-label-sm opacity-70 mt-1">
-            {currentMember.tierLabel}
+            {tierLabel}
           </p>
         </div>
       </div>
@@ -40,18 +40,18 @@ function SideNav({ onLogout }) {
       </nav>
 
       <div className="mt-auto border-t border-on-primary-container/10 pt-6 space-y-2">
-        <button
-          type="button"
-          className="w-full py-3 px-4 bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-lg mb-4 hover:opacity-90 transition-opacity"
+        <a
+          href="/#tiers"
+          className="block text-center w-full py-3 px-4 bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-lg mb-4 hover:opacity-90 transition-opacity no-underline"
         >
           Upgrade Tier
-        </button>
+        </a>
         <a
           className="flex items-center gap-3 px-4 py-2 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer"
-          href="#help"
+          href={`mailto:${SUPPORT_EMAIL}`}
         >
           <span className="material-symbols-outlined">help</span>
-          <span className="font-label-md text-label-md">Help Center</span>
+          <span className="font-label-md text-label-md">Contact Support</span>
         </a>
         <button
           type="button"

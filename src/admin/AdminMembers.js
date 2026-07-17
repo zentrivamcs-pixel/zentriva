@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import AdminDirectoryPdf from './AdminDirectoryPdf';
+import { exportDirectoryPdf } from './exportDirectoryPdf';
 import { tallyScalar, tallyArray, searchableText, ARRAY_FIELDS, FIELD_LABELS } from './adminHelpers';
 
 function AdminMembers() {
   const { members, loading, setViewing, openEdit, handleDelete } = useOutletContext();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [filterSkill, setFilterSkill] = useState('');
@@ -142,22 +142,22 @@ function AdminMembers() {
             </button>
           )}
           <div className="flex-1" />
-          <PDFDownloadLink
-            document={<AdminDirectoryPdf data={filteredMembers} />}
-            fileName="zentriva-directory.pdf"
-            className="no-underline text-on-primary"
+          <button
+            type="button"
+            disabled={pdfLoading}
+            onClick={async () => {
+              setPdfLoading(true);
+              try {
+                await exportDirectoryPdf(filteredMembers);
+              } finally {
+                setPdfLoading(false);
+              }
+            }}
+            className="px-4 py-2 bg-primary text-on-primary rounded-lg text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            {({ loading: pdfLoading }) => (
-              <button
-                type="button"
-                disabled={pdfLoading}
-                className="px-4 py-2 bg-primary text-on-primary rounded-lg text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
-              >
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                {pdfLoading ? 'Preparing…' : 'Export PDF'}
-              </button>
-            )}
-          </PDFDownloadLink>
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            {pdfLoading ? 'Preparing…' : 'Export PDF'}
+          </button>
         </div>
 
         <p className="px-6 pt-4 text-label-sm text-on-surface-variant">

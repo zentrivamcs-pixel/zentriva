@@ -5,16 +5,17 @@ function Hero() {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden px-margin-mobile md:px-margin-desktop">
       <div className="absolute inset-0 z-0">
-        {/* hero-bg.png has "Zentriva Multipurpose Cooperative Society" baked
+        {/* hero-bg.jpg has "Zentriva Multipurpose Cooperative Society" baked
             into it as large cursive text — blurred so it reads as texture
             behind the h1 instead of competing with it. scale-110 keeps the
-            blur from revealing the image's edges. */}
+            blur from revealing the image's edges. (JPEG at display size —
+            the original 1.3MB PNG was 16x heavier for a blurred backdrop.) */}
         <div
           className="w-full h-full bg-cover bg-center scale-110"
           role="img"
           aria-label="Zentriva Multipurpose Cooperative Society members in a skills training session"
           style={{
-            backgroundImage: `url("${process.env.PUBLIC_URL}/images/hero-bg.png")`,
+            backgroundImage: `url("${process.env.PUBLIC_URL}/images/hero-bg.jpg")`,
             filter: 'blur(14px) brightness(0.6) saturate(1.05)',
           }}
         />
