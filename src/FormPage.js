@@ -443,10 +443,12 @@ function FormPage() {
             <div className="reference-note">
               <p>
                 We've received your bank transfer proof — your registration is
-                <strong> pending review</strong>. An admin will verify your payment
-                shortly; you'll be able to <a href="/member">log in to the Member
-                Portal</a> once it's approved. Your reference is <strong>{lastReference}</strong>;
-                keep it for your records.
+                <strong> pending review</strong>. Check your inbox now for a
+                verification email and confirm your address; once an admin
+                also approves your payment, you'll be able to{' '}
+                <a href="/member">log in to the Member Portal</a>. Your
+                reference is <strong>{lastReference}</strong>; keep it for
+                your records.
               </p>
             </div>
           )}
@@ -454,9 +456,10 @@ function FormPage() {
           {lastReference && lastPaymentMethod !== 'bank_transfer' && (
             <div className="reference-note">
               <p>
-                Your member account is ready — <a href="/member">log in to the
-                Member Portal</a> with your email address and the password you
-                chose. Your payment reference is <strong>{lastReference}</strong>;
+                Almost there — check your inbox for a verification email and
+                confirm your address, then <a href="/member">log in to the
+                Member Portal</a> with your email and the password you chose.
+                Your payment reference is <strong>{lastReference}</strong>;
                 keep it for your records.
               </p>
             </div>

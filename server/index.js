@@ -9,13 +9,16 @@ const cors = require('cors');
 const crypto = require('crypto');
 const { getDb } = require('../shared/db');
 const repo = require('../shared/membersRepo');
+const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
 const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail, cleanUrl } = require('../shared/validation');
-const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail } = require('../shared/email');
+const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail } = require('../shared/email');
+const { verifySvixSignature } = require('../shared/webhookAuth');
 const { handleUpload } = require('@vercel/blob/client');
 
 const RESET_TTL_MS = 30 * 60 * 1000; // password-reset links live 30 minutes
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // email-verification links live 24 hours
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,7 +27,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const db = getDb();
-const ready = repo.ensureSchema(db);
+const ready = Promise.all([repo.ensureSchema(db), inboxRepo.ensureSchema(db)]);
 
 // Dev server is only ever called by the CRA dev client.
 app.use(cors({ origin: ['http://localhost:3000', 'http://127.0.0.1:3000'] }));
@@ -138,6 +141,12 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   if (member.payment_status === 'rejected') {
     return res.status(403).json({ error: 'Your payment could not be verified. Please contact support to complete your registration.' });
   }
+  if (!member.email_verified) {
+    return res.status(403).json({
+      error: 'Please verify your email address before logging in. Check your inbox for the verification link, or request a new one.',
+      code: 'EMAIL_NOT_VERIFIED',
+    });
+  }
   const token = auth.memberToken(member.id, member.token_version);
   res.json({ token, member: repo.sanitizeMember(member) });
 }));
@@ -189,6 +198,46 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
   }
   await repo.setPassword(db, memberId, auth.hashPassword(String(new_password)));
   res.json({ ok: true });
+}));
+
+// Consumes the single-use token from the verification email link.
+app.post('/api/auth/verify-email', wrap(async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) return res.status(400).json({ error: 'Verification token is required' });
+
+  const memberId = await repo.consumeEmailVerification(db, auth.sha256(String(token).trim()));
+  if (!memberId) {
+    return res.status(400).json({ error: 'This verification link is invalid or has expired — request a new one.' });
+  }
+  await repo.markEmailVerified(db, memberId);
+  res.json({ ok: true });
+}));
+
+// Same response whether or not the email is registered/already verified
+// (no account enumeration); 503 only when email isn't configured.
+app.post('/api/auth/resend-verification', wrap(async (req, res) => {
+  if (!isEmailEnabled()) {
+    return res.status(503).json({
+      error: 'Email verification is not available right now — please contact support.',
+    });
+  }
+  const email = cleanEmail((req.body || {}).email);
+  if (!email) return res.status(400).json({ error: 'A valid email address is required' });
+
+  const found = await db.execute({
+    sql: 'SELECT * FROM members WHERE lower(email) = lower(?) LIMIT 1',
+    args: [email],
+  });
+  const member = found.rows[0];
+  if (member && !member.email_verified) {
+    const token = auth.randomToken();
+    await repo.createEmailVerification(
+      db, Number(member.id), auth.sha256(token),
+      new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+    );
+    await sendVerificationEmail(member, token);
+  }
+  res.json({ ok: true, message: 'If that email is registered and not yet verified, a verification link has been sent.' });
 }));
 
 // --- Member self-service --------------------------------------------------------
@@ -296,6 +345,16 @@ app.post('/api/members', wrap(async (req, res) => {
     // registration (sendRegistrationEmail never throws).
     await sendRegistrationEmail(created);
 
+    // Payment proves the charge went through, not that this member owns
+    // the email address — that's proven separately via this link before
+    // login is allowed (see the email_verified gate on /api/auth/login).
+    const verifyToken = auth.randomToken();
+    await repo.createEmailVerification(
+      db, Number(created.id), auth.sha256(verifyToken),
+      new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+    );
+    await sendVerificationEmail(created, verifyToken);
+
     res.status(201).json(repo.sanitizeMember(created));
   } catch (err) {
     if (err instanceof repo.ConflictError) {
@@ -348,6 +407,54 @@ app.post('/api/members/:id/payment', requireAdmin, wrap(async (req, res) => {
     await sendPaymentRejectedEmail(member);
   }
   res.json(repo.sanitizeMember(member));
+}));
+
+// --- Inbound email (Resend "Inbound") ---------------------------------------------
+
+// Resend's email.received webhook. Payloads only carry metadata, so this
+// fetches the full message via the Received Emails API and stores it —
+// idempotent on resend_id, since Svix (and therefore Resend) retries
+// deliveries that don't get a fast 200.
+app.post('/api/inbox/receive', wrap(async (req, res) => {
+  const secret = process.env.RESEND_WEBHOOK_SECRET;
+  if (!secret) return res.status(500).json({ error: 'RESEND_WEBHOOK_SECRET is not configured' });
+
+  const rawBody = (req.rawBody || Buffer.from('')).toString('utf8');
+  const valid = verifySvixSignature({
+    id: req.headers['svix-id'],
+    timestamp: req.headers['svix-timestamp'],
+    signature: req.headers['svix-signature'],
+    body: rawBody,
+    secret,
+  });
+  if (!valid) return res.status(401).json({ error: 'Invalid signature' });
+
+  const event = req.body || {};
+  if (event.type === 'email.received' && event.data && event.data.email_id) {
+    const full = await getReceivedEmail(event.data.email_id);
+    await inboxRepo.createInboundMessage(db, {
+      resendId: full.id,
+      from: full.from,
+      to: Array.isArray(full.to) ? full.to.join(', ') : full.to,
+      subject: full.subject,
+      text: full.text,
+      html: full.html,
+      attachments: full.attachments,
+      receivedAt: full.created_at,
+    });
+  }
+  res.json({ received: true });
+}));
+
+app.get('/api/inbox/list', requireAdmin, wrap(async (req, res) => {
+  res.json(await inboxRepo.listInboundMessages(db));
+}));
+
+app.post('/api/inbox/mark-read', requireAdmin, wrap(async (req, res) => {
+  const { id, read } = req.body || {};
+  if (id === undefined) return res.status(400).json({ error: 'id is required' });
+  await inboxRepo.setInboundMessageRead(db, id, read !== false);
+  res.json({ ok: true });
 }));
 
 // --- File uploads (Vercel Blob) --------------------------------------------------

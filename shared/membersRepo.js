@@ -128,6 +128,10 @@ async function ensureSchema(db) {
     'ALTER TABLE members ADD COLUMN payment_method TEXT',
     'ALTER TABLE members ADD COLUMN payment_status TEXT',
     'ALTER TABLE members ADD COLUMN payment_proof_url TEXT',
+    // No DEFAULT on purpose — NULL marks rows that predate this column
+    // (see backfill below), while createMember always sets 0 or 1
+    // explicitly for every row created after this feature shipped.
+    'ALTER TABLE members ADD COLUMN email_verified INTEGER',
   ];
   for (const sql of migrations) {
     try {
@@ -142,6 +146,14 @@ async function ensureSchema(db) {
   // Without this, pre-existing members would be wrongly gated as pending.
   await db.execute(
     "UPDATE members SET payment_status = 'paid' WHERE payment_status IS NULL"
+  );
+
+  // Backfill: members who registered before email verification existed
+  // never got a verification link, so they'd be locked out of login the
+  // moment this shipped. Treat every pre-existing row as already verified;
+  // createMember sets 0 explicitly for every row from here on.
+  await db.execute(
+    'UPDATE members SET email_verified = 1 WHERE email_verified IS NULL'
   );
 
   // Prevent the same Paystack payment from being used for more than one registration.
@@ -181,6 +193,18 @@ async function ensureSchema(db) {
     )
   `);
 
+  // Single-use email-verification tokens — same shape as password_resets.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id   INTEGER NOT NULL,
+      token_hash  TEXT NOT NULL UNIQUE,
+      expires_at  TEXT NOT NULL,
+      used        INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   schemaReady = true;
 }
 
@@ -207,6 +231,7 @@ function sanitizeMember(row) {
   delete out.password_hash;
   delete out.token_version;
   out.has_password = !!row.password_hash;
+  out.email_verified = !!row.email_verified;
   return out;
 }
 
@@ -315,7 +340,7 @@ async function createMember(db, body, paymentTx, passwordHash, paymentMeta) {
 
     await tx.execute({
       sql: `UPDATE members
-            SET membership_id = ?, password_hash = ?, payment_method = ?, payment_status = ?, payment_proof_url = ?
+            SET membership_id = ?, password_hash = ?, payment_method = ?, payment_status = ?, payment_proof_url = ?, email_verified = 0
             WHERE id = ?`,
       args: [
         buildMembershipId(newId, body.membership_category, now), passwordHash || null,
@@ -437,6 +462,35 @@ async function consumePasswordReset(db, tokenHash) {
   return result.rows[0] ? Number(result.rows[0].member_id) : null;
 }
 
+// --- Email verification tokens ------------------------------------------------
+
+async function createEmailVerification(db, memberId, tokenHash, expiresAtIso) {
+  await db.execute({
+    sql: 'INSERT INTO email_verifications (member_id, token_hash, expires_at) VALUES (?, ?, ?)',
+    args: [memberId, tokenHash, expiresAtIso],
+  });
+}
+
+// Atomically marks a valid (unused, unexpired) verification token as used
+// and returns its member_id — or null if the token is unknown/expired/spent.
+async function consumeEmailVerification(db, tokenHash) {
+  const result = await db.execute({
+    sql: `UPDATE email_verifications
+          SET used = 1
+          WHERE token_hash = ? AND used = 0 AND expires_at > ?
+          RETURNING member_id`,
+    args: [tokenHash, new Date().toISOString()],
+  });
+  return result.rows[0] ? Number(result.rows[0].member_id) : null;
+}
+
+async function markEmailVerified(db, memberId) {
+  await db.execute({
+    sql: 'UPDATE members SET email_verified = 1 WHERE id = ?',
+    args: [memberId],
+  });
+}
+
 // Loads a member for /api/me, backfilling the membership number for rows
 // registered before membership IDs existed.
 async function getMemberWithMembershipId(db, id) {
@@ -539,6 +593,7 @@ module.exports = {
   listMembers, getMember, emailExists, createMember, updateMember, deleteMember,
   findByEmailWithPassword, findByEmailAndReference, setPassword, clearPassword,
   createPasswordReset, consumePasswordReset,
+  createEmailVerification, consumeEmailVerification, markEmailVerified,
   getMemberWithMembershipId, updateProfile, listDirectory,
   listPaymentsForMember, recordWebhookPayment, setPaymentStatus,
 };

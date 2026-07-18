@@ -46,6 +46,7 @@ async function authedFetch(url, token, options = {}) {
     const body = await response.json().catch(() => ({}));
     const error = new Error(body.error || `HTTP ${response.status}`);
     error.status = response.status;
+    error.code = body.code;
     throw error;
   }
   return response.json();

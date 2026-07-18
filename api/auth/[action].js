@@ -3,10 +3,11 @@
 // share a single Vercel serverless function instead of five (Hobby plan
 // caps a deployment at 12 functions).
 const { repo, getReadyDb, parseBody, auth } = require('../_lib');
-const { isEmailEnabled, sendPasswordResetEmail } = require('../../shared/email');
+const { isEmailEnabled, sendPasswordResetEmail, sendVerificationEmail } = require('../../shared/email');
 const { cleanEmail, passwordError } = require('../../shared/validation');
 
 const RESET_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // POST /api/auth/check-email — pre-payment duplicate check for the
 // registration form, so a member isn't charged before finding out their
@@ -32,6 +33,12 @@ async function login(req, res, db) {
   }
   if (member.payment_status === 'rejected') {
     return res.status(403).json({ error: 'Your payment could not be verified. Please contact support to complete your registration.' });
+  }
+  if (!member.email_verified) {
+    return res.status(403).json({
+      error: 'Please verify your email address before logging in. Check your inbox for the verification link, or request a new one.',
+      code: 'EMAIL_NOT_VERIFIED',
+    });
   }
   const token = auth.memberToken(member.id, member.token_version);
   return res.status(200).json({ token, member: repo.sanitizeMember(member) });
@@ -116,12 +123,61 @@ async function reset(req, res, db) {
   return res.status(200).json({ ok: true });
 }
 
+// POST /api/auth/verify-email — consumes the single-use token from the
+// verification email link and marks the member's email as owned.
+async function verifyEmail(req, res, db) {
+  const { token } = parseBody(req);
+  if (!token) return res.status(400).json({ error: 'Verification token is required' });
+
+  const memberId = await repo.consumeEmailVerification(db, auth.sha256(String(token).trim()));
+  if (!memberId) {
+    return res.status(400).json({ error: 'This verification link is invalid or has expired — request a new one.' });
+  }
+  await repo.markEmailVerified(db, memberId);
+  return res.status(200).json({ ok: true });
+}
+
+// POST /api/auth/resend-verification — same response whether or not the
+// email is registered/already verified (no account enumeration).
+async function resendVerification(req, res, db) {
+  if (!isEmailEnabled()) {
+    return res.status(503).json({
+      error: 'Email verification is not available right now — please contact support.',
+    });
+  }
+
+  const email = cleanEmail(parseBody(req).email);
+  if (!email) return res.status(400).json({ error: 'A valid email address is required' });
+
+  const found = await db.execute({
+    sql: 'SELECT * FROM members WHERE lower(email) = lower(?) LIMIT 1',
+    args: [email],
+  });
+  const member = found.rows[0];
+
+  if (member && !member.email_verified) {
+    const token = auth.randomToken();
+    await repo.createEmailVerification(
+      db, Number(member.id), auth.sha256(token),
+      new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+    );
+    await sendVerificationEmail(member, token);
+  }
+
+  return res.status(200).json({
+    ok: true,
+    message: 'If that email is registered and not yet verified, a verification link has been sent.',
+  });
+}
+
 const ACTIONS = {
   'check-email': checkEmail,
   login,
   claim,
   forgot,
   reset,
+  'verify-email': verifyEmail,
+  'resend-verification': resendVerification,
 };
 
 module.exports = async (req, res) => {

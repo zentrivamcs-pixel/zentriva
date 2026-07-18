@@ -13,7 +13,7 @@ const labelClass = 'block text-label-sm text-on-surface-variant mb-1 mt-4';
 // ("claim") verifies identity with the email + Paystack payment reference
 // from registration, then sets the member's password.
 function MemberLogin() {
-  const { login, claim } = useMemberAuth();
+  const { login, claim, resendVerification } = useMemberAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'claim' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +22,8 @@ function MemberLogin() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const switchMode = (next) => {
     setMode(next);
@@ -29,6 +31,21 @@ function MemberLogin() {
     setNotice('');
     setPassword('');
     setConfirm('');
+    setUnverified(false);
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setError('');
+    try {
+      await resendVerification(email.trim());
+      setUnverified(false);
+      setNotice('If that email is registered and not yet verified, a verification link has been sent.');
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -48,6 +65,7 @@ function MemberLogin() {
     }
 
     setBusy(true);
+    setUnverified(false);
     try {
       if (mode === 'login') {
         await login(email.trim(), password);
@@ -65,6 +83,9 @@ function MemberLogin() {
         setError(
           'Password reset by email is not available yet. Contact support, or use "First time? Activate" with your payment reference if your account was reset.'
         );
+      } else if (mode === 'login' && err.code === 'EMAIL_NOT_VERIFIED') {
+        setError(err.message);
+        setUnverified(true);
       } else {
         setError(err.message || 'Something went wrong. Please try again.');
       }
@@ -208,6 +229,16 @@ function MemberLogin() {
           )}
 
           {error && <p className="text-error text-label-sm mt-3" role="alert">{error}</p>}
+          {unverified && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="bg-transparent text-label-sm text-primary hover:underline mt-2 disabled:opacity-60"
+            >
+              {resending ? 'Sending…' : 'Resend verification email'}
+            </button>
+          )}
           {notice && (
             <p className="text-label-sm mt-3 text-on-tertiary-container bg-tertiary-container/40 rounded-lg p-3" role="status">
               {notice}

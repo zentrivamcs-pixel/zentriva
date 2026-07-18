@@ -48,6 +48,13 @@ export function MemberAuthProvider({ children }) {
     setMember(data.member);
   }, []);
 
+  const resendVerification = useCallback((email) => (
+    publicApi('/api/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  ), []);
+
   const logout = useCallback(() => {
     clearMemberToken();
     setMember(null);
@@ -59,10 +66,11 @@ export function MemberAuthProvider({ children }) {
     loading,
     login,
     claim,
+    resendVerification,
     logout,
     refresh,
     setMember,
-  }), [member, loading, login, claim, logout, refresh]);
+  }), [member, loading, login, claim, resendVerification, logout, refresh]);
 
   return (
     <MemberAuthContext.Provider value={value}>

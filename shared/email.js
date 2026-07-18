@@ -23,6 +23,24 @@ function isEmailEnabled() {
   return !!(apiKey && from);
 }
 
+// Fetches a full received (inbound) email by id. The email.received webhook
+// only carries metadata, so callers hit this to get the body/attachments.
+// Unlike sendEmail, this throws on failure — the webhook handler needs to
+// know so it can return non-200 and let Resend retry rather than silently
+// dropping the message.
+async function getReceivedEmail(id) {
+  const { apiKey } = getConfig();
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured on the server');
+  const response = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend receiving API returned ${response.status}: ${body}`);
+  }
+  return response.json();
+}
+
 async function sendEmail({ to, subject, html, text }) {
   const { apiKey, from } = getConfig();
   if (!apiKey || !from) {
@@ -184,7 +202,33 @@ function sendPasswordResetEmail(member, token) {
   });
 }
 
+// Email-ownership verification link (24-hour, single-use token). Separate
+// from sendRegistrationEmail: that email confirms the *payment*, this one
+// confirms the member actually controls the inbox — required before login.
+function sendVerificationEmail(member, token) {
+  const { baseUrl } = getConfig();
+  const link = `${baseUrl}/member/verify?token=${encodeURIComponent(token)}`;
+  return sendEmail({
+    to: member.email,
+    subject: 'Verify your email — Zentriva Member Portal',
+    text:
+      `Hi ${member.full_name},\n\nPlease verify your email address to activate your Zentriva member portal login (valid for 24 hours):\n${link}\n\n` +
+      `If you didn't register with Zentriva, you can ignore this email.\n`,
+    html: layout('Verify your email address', `
+      <p>Hi <strong>${escapeHtml(member.full_name)}</strong>,</p>
+      <p>One last step before you can log in to the member portal — confirm this is your email address. The link below is valid for <strong>24 hours</strong>.</p>
+      <p style="margin-top:20px;">
+        <a href="${link}" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
+          Verify Email Address
+        </a>
+      </p>
+      <p style="color:#555;font-size:13px;">If you didn't register with Zentriva, you can safely ignore this email.</p>
+    `),
+  });
+}
+
 module.exports = {
   isEmailEnabled, sendEmail, sendRegistrationEmail, sendPasswordResetEmail,
-  sendPaymentApprovedEmail, sendPaymentRejectedEmail,
+  sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail,
+  getReceivedEmail,
 };

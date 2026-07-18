@@ -2,7 +2,9 @@
 const { repo, getReadyDb, parseBody, verifyPaystackPayment, requireAdmin, auth } = require('../_lib');
 const { validateRegistration, passwordError, cleanUrl } = require('../../shared/validation');
 const { getTier } = require('../../shared/membershipTiers');
-const { sendRegistrationEmail } = require('../../shared/email');
+const { sendRegistrationEmail, sendVerificationEmail } = require('../../shared/email');
+
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 module.exports = async (req, res) => {
   try {
@@ -72,6 +74,16 @@ module.exports = async (req, res) => {
       // isn't frozen mid-send, but strictly best-effort: a mail failure
       // never fails a paid registration (sendRegistrationEmail never throws).
       await sendRegistrationEmail(created);
+
+      // Payment proves the charge went through, not that this member owns
+      // the email address — that's proven separately via this link before
+      // login is allowed (see login()'s email_verified gate).
+      const verifyToken = auth.randomToken();
+      await repo.createEmailVerification(
+        db, Number(created.id), auth.sha256(verifyToken),
+        new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+      );
+      await sendVerificationEmail(created, verifyToken);
 
       return res.status(201).json(repo.sanitizeMember(created));
     }
