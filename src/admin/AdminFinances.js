@@ -184,7 +184,7 @@ function AdminFinances() {
           label="Outstanding Dues"
           value={nairaFmt(financials.totalPending)}
           subtext={`${financials.pendingCount} pending review${financials.rejectedCount ? ` · ${financials.rejectedCount} rejected` : ''}`}
-          to={buildMembersFilterUrl('payment_status', 'pending_review')}
+          to="/admin/transactions?status=pending_review"
         />
         <KpiCard
           icon="verified"
@@ -291,8 +291,8 @@ function AdminFinances() {
       <section className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden mt-gutter">
         <div className="p-6 border-b border-outline-variant flex justify-between items-center">
           <h4 className="font-headline-md text-primary">Outstanding Member Dues</h4>
-          <Link to={buildMembersFilterUrl('payment_status', 'pending_review')} className="text-primary text-label-sm font-bold no-underline hover:underline flex items-center gap-1">
-            View All <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          <Link to="/admin/transactions?status=pending_review" className="text-primary text-label-sm font-bold no-underline hover:underline flex items-center gap-1">
+            Review & Approve <span className="material-symbols-outlined text-[18px]">chevron_right</span>
           </Link>
         </div>
         <div className="overflow-x-auto">

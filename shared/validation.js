@@ -221,7 +221,7 @@ function cleanAdminWrite(body) {
 }
 
 module.exports = {
-  cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum,
+  cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum, cleanUrl,
   validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite,
   PASSWORD_MIN, PASSWORD_MAX,
 };

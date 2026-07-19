@@ -23,6 +23,11 @@ const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
 // the ?tier= query param (set when arriving from a membership tier CTA).
 const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
 
+// Card payments are on hold while Paystack is being finalized — bank
+// transfer is the only registration path for now. Flip back to true (and
+// nothing else) once Paystack is ready to go live again.
+const PAYSTACK_ENABLED = false;
+
 // Date of Birth is collected as three plain <select>s instead of a native
 // <input type="date"> — the browser's built-in date picker popup can't be
 // restyled to match the rest of the form, so it looks jarring next to it.
@@ -143,7 +148,9 @@ function FormPage() {
   const [bankProofUrl, setBankProofUrl] = useState('');
   const [bankProofUploading, setBankProofUploading] = useState(false);
   const [bankProofError, setBankProofError] = useState('');
-  const [showBankPanel, setShowBankPanel] = useState(false);
+  // Bank transfer is the only payment method while Paystack is on hold, so
+  // its panel starts open instead of requiring an extra click to reveal it.
+  const [showBankPanel, setShowBankPanel] = useState(!PAYSTACK_ENABLED);
 
   // Paystack's inline script is only needed on this page, so it's injected
   // here instead of shipping in index.html on every page of the site. Its
@@ -397,7 +404,7 @@ function FormPage() {
     }
   };
 
-  const canPayWithCard = paystackReady && !!PAYSTACK_PUBLIC_KEY;
+  const canPayWithCard = PAYSTACK_ENABLED && paystackReady && !!PAYSTACK_PUBLIC_KEY;
 
   // Triggers the Paystack checkout; the registration is only saved once
   // payment succeeds.
@@ -568,7 +575,7 @@ function FormPage() {
             </>
           ) : (
             <p className="form-validation-error">
-              ⚠️ Card payment is temporarily unavailable. Please use Bank Transfer below, or try again shortly.
+              ⚠️ Card payment is on hold for now. Please use Bank Transfer below to complete your registration.
             </p>
           )}
         </div>
@@ -1365,8 +1372,8 @@ function FormPage() {
         </div>
 
         <p className="payment-notice">
-          💳 Your {tier.name} tier registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
-          collected on the next step — by card (Paystack) or bank transfer.
+          {PAYSTACK_ENABLED ? '💳' : '🏦'} Your {tier.name} tier registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
+          collected on the next step {PAYSTACK_ENABLED ? '— by card (Paystack) or bank transfer.' : 'by bank transfer. Card payment is on hold for now.'}
         </p>
 
         <button type="submit" className="submit-button" disabled={submitting}>

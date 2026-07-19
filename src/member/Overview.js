@@ -6,7 +6,7 @@ import { buildMembershipQrValue } from './membershipQr';
 import { useMemberAuth } from './MemberAuthContext';
 import { useProfile } from './ProfileContext';
 import { memberApi } from '../shared/api';
-import { parseDbDate, formatShortDate } from './memberView';
+import { parseDbDate, formatShortDate, paymentRowStatus } from './memberView';
 import { quickBenefits } from './memberData';
 import { events } from '../home/homeData';
 
@@ -180,23 +180,26 @@ function Overview() {
                 No payment records yet.
               </p>
             )}
-            {(payments || []).slice(0, 3).map((payment) => (
-              <div key={payment.id} className="flex gap-4">
-                <div className="h-10 w-10 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-on-tertiary-container text-[20px]">
-                    payments
-                  </span>
+            {(payments || []).slice(0, 3).map((payment) => {
+              const status = paymentRowStatus(payment.status);
+              return (
+                <div key={payment.id} className="flex gap-4">
+                  <div className="h-10 w-10 rounded-full bg-tertiary-container flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-on-tertiary-container text-[20px]">
+                      payments
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-label-md text-label-md text-primary capitalize">
+                      {payment.description || 'Payment'} — ₦{((payment.amount_kobo || 0) / 100).toLocaleString()}
+                    </p>
+                    <p className="font-label-sm text-label-sm text-secondary">
+                      {formatShortDate(parseDbDate(payment.paid_at || payment.created_at))} • {status.label}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-label-md text-label-md text-primary capitalize">
-                    {payment.description || 'Payment'} — ₦{((payment.amount_kobo || 0) / 100).toLocaleString()}
-                  </p>
-                  <p className="font-label-sm text-label-sm text-secondary">
-                    {formatShortDate(parseDbDate(payment.paid_at || payment.created_at))} • {payment.status}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {nextEvent && (
               <div className="mt-8 pt-8 border-t border-outline-variant">

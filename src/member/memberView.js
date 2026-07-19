@@ -18,6 +18,21 @@ export function formatShortDate(date) {
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
 
+// A payments row's status is 'success' (Paystack, set once at the webhook)
+// or 'pending' / 'paid' / 'rejected' (bank transfer, set at registration and
+// then updated by an admin decision) — see shared/membersRepo.js. Both
+// "success" and "paid" mean the same thing to a member, so they share a look.
+const PAYMENT_ROW_STATUS_LABELS = {
+  success: { label: 'Paid', className: 'bg-tertiary-container text-on-tertiary-container' },
+  paid: { label: 'Paid', className: 'bg-tertiary-container text-on-tertiary-container' },
+  pending: { label: 'Pending Review', className: 'bg-surface-container text-secondary' },
+  rejected: { label: 'Rejected', className: 'bg-error-container text-on-error-container' },
+};
+
+export function paymentRowStatus(status) {
+  return PAYMENT_ROW_STATUS_LABELS[status] || { label: status || 'Unknown', className: 'bg-surface-container text-secondary' };
+}
+
 // Membership numbers are "ZNTR-<id>-<category>-<year>", e.g.
 // "ZNTR-1042-EXE-2026" (see buildMembershipId in shared/membersRepo.js). The
 // category letters anchor the match so a bare fallback ID like "ZNTR-1042"

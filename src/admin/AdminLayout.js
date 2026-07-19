@@ -143,7 +143,7 @@ function AdminLayout({ onLogout }) {
       <div className="md:ml-64">
         <AdminTopNav onMenuToggle={() => setNavOpen((open) => !open)} />
         <main className="p-margin-mobile md:p-margin-desktop space-y-gutter">
-          <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete, handleResetAccount }} />
+          <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete, handleResetAccount, handlePaymentDecision }} />
         </main>
       </div>
 

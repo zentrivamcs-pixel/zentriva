@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useMemberAuth } from './MemberAuthContext';
 import { memberApi } from '../shared/api';
-import { parseDbDate, formatShortDate } from './memberView';
+import { parseDbDate, formatShortDate, paymentRowStatus } from './memberView';
 import { SUPPORT_EMAIL } from '../shared/contact';
 
 const naira = (kobo) => `₦${((kobo || 0) / 100).toLocaleString()}`;
@@ -117,33 +117,30 @@ function BillingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant">
-                  {payments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-surface-container/30 transition-colors">
-                      <td className="px-6 py-4 font-body-md text-body-md whitespace-nowrap">
-                        {formatShortDate(parseDbDate(payment.paid_at || payment.created_at))}
-                      </td>
-                      <td className="px-6 py-4 font-body-md text-body-md capitalize">
-                        {payment.description || 'Payment'}
-                      </td>
-                      <td className="px-6 py-4 font-label-sm text-label-sm text-secondary font-mono">
-                        {payment.reference}
-                      </td>
-                      <td className="px-6 py-4 font-label-md text-label-md font-bold text-right whitespace-nowrap">
-                        {naira(payment.amount_kobo)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 text-label-sm font-bold rounded-full uppercase ${
-                            payment.status === 'success'
-                              ? 'bg-tertiary-container text-on-tertiary-container'
-                              : 'bg-surface-container text-secondary'
-                          }`}
-                        >
-                          {payment.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {payments.map((payment) => {
+                    const status = paymentRowStatus(payment.status);
+                    return (
+                      <tr key={payment.id} className="hover:bg-surface-container/30 transition-colors">
+                        <td className="px-6 py-4 font-body-md text-body-md whitespace-nowrap">
+                          {formatShortDate(parseDbDate(payment.paid_at || payment.created_at))}
+                        </td>
+                        <td className="px-6 py-4 font-body-md text-body-md capitalize">
+                          {payment.description || 'Payment'}
+                        </td>
+                        <td className="px-6 py-4 font-label-sm text-label-sm text-secondary font-mono">
+                          {payment.reference}
+                        </td>
+                        <td className="px-6 py-4 font-label-md text-label-md font-bold text-right whitespace-nowrap">
+                          {naira(payment.amount_kobo)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 text-label-sm font-bold rounded-full ${status.className}`}>
+                            {status.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
