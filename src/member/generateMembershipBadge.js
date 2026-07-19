@@ -165,6 +165,11 @@ function loadImage(src) {
       return;
     }
     const img = new Image();
+    // The profile photo is fetched from Vercel Blob storage — a different
+    // origin than the app. Without this, drawing it onto the canvas taints
+    // the canvas (no CORS attestation), and toDataURL/toBlob then throw
+    // SecurityError when the badge is downloaded or printed.
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = src;
