@@ -12,6 +12,7 @@ const AdminGate = lazy(() => import('./admin/AdminGate'));
 const AdminOverview = lazy(() => import('./admin/AdminOverview'));
 const AdminMembers = lazy(() => import('./admin/AdminMembers'));
 const AdminInbox = lazy(() => import('./admin/AdminInbox'));
+const AdminFinances = lazy(() => import('./admin/AdminFinances'));
 const MemberLayout = lazy(() => import('./member/MemberLayout'));
 const Overview = lazy(() => import('./member/Overview'));
 const MembershipId = lazy(() => import('./member/MembershipId'));
@@ -85,7 +86,7 @@ function App() {
             <Route index element={<AdminOverview />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="inbox" element={<AdminInbox />} />
-            <Route path="finances" element={<ComingSoon title="Finances" icon="account_balance" />} />
+            <Route path="finances" element={<AdminFinances />} />
             <Route path="transactions" element={<ComingSoon title="Transactions" icon="receipt_long" />} />
             <Route path="settings" element={<ComingSoon title="Settings" icon="settings" />} />
           </Route>
