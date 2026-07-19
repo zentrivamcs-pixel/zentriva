@@ -5,12 +5,11 @@ import { publicApi } from './shared/api';
 import { isValidPhone } from './shared/phoneValidation';
 import { uploadImage } from './shared/uploadFile';
 
-// Mock bank details shown for the "Pay by Bank Transfer" option — replace
-// with the real account before going live.
+// Bank details shown for the "Pay by Bank Transfer" option.
 const BANK_TRANSFER_DETAILS = {
-  bankName: 'Zenith Bank',
-  accountNumber: '1234567890',
-  accountName: 'Zentriva Multipurpose Cooperative Society',
+  bankName: 'Moniepoint',
+  accountNumber: '5979635683',
+  accountName: "Kafi's Fks Enterprise",
 };
 
 const generateBankReference = () =>
