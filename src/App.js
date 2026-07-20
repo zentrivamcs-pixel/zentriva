@@ -14,6 +14,7 @@ const AdminMembers = lazy(() => import('./admin/AdminMembers'));
 const AdminInbox = lazy(() => import('./admin/AdminInbox'));
 const AdminFinances = lazy(() => import('./admin/AdminFinances'));
 const AdminTransactions = lazy(() => import('./admin/AdminTransactions'));
+const AdminSettings = lazy(() => import('./admin/AdminSettings'));
 const MemberLayout = lazy(() => import('./member/MemberLayout'));
 const Overview = lazy(() => import('./member/Overview'));
 const MembershipId = lazy(() => import('./member/MembershipId'));
@@ -89,7 +90,7 @@ function App() {
             <Route path="inbox" element={<AdminInbox />} />
             <Route path="finances" element={<AdminFinances />} />
             <Route path="transactions" element={<AdminTransactions />} />
-            <Route path="settings" element={<ComingSoon title="Settings" icon="settings" />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           <Route path="/member" element={<MemberLayout />}>

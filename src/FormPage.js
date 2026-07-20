@@ -4,13 +4,7 @@ import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
 import { publicApi } from './shared/api';
 import { isValidPhone } from './shared/phoneValidation';
 import { uploadImage } from './shared/uploadFile';
-
-// Bank details shown for the "Pay by Bank Transfer" option.
-const BANK_TRANSFER_DETAILS = {
-  bankName: 'Moniepoint',
-  accountNumber: '5979635683',
-  accountName: "Kafi's Fks Enterprise",
-};
+import { PAYSTACK_ENABLED, BANK_TRANSFER_DETAILS } from './shared/paymentConfig';
 
 const generateBankReference = () =>
   `BT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
@@ -21,11 +15,6 @@ const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
 // Paystack public key (set in .env.local). The registration fee is driven by
 // the ?tier= query param (set when arriving from a membership tier CTA).
 const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
-
-// Card payments are on hold while Paystack is being finalized — bank
-// transfer is the only registration path for now. Flip back to true (and
-// nothing else) once Paystack is ready to go live again.
-const PAYSTACK_ENABLED = false;
 
 // Date of Birth is collected as three plain <select>s instead of a native
 // <input type="date"> — the browser's built-in date picker popup can't be
