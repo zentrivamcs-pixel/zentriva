@@ -5,6 +5,7 @@ export const sidebarNav = [
   { label: 'Profile Info', icon: 'person', to: '/member/profile' },
   { label: 'Billing', icon: 'payments', to: '/member/billing' },
   { label: 'Security', icon: 'security', to: '/member/security' },
+  { label: 'Support', icon: 'support_agent', to: '/member/support' },
 ];
 
 // Bottom bar fits five items; Security lives behind the shield icon in the

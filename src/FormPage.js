@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { getTier, MEMBERSHIP_TIERS } from './shared/membershipTiers';
+import { getTier } from './shared/membershipTiers';
 import { publicApi } from './shared/api';
 import { isValidPhone } from './shared/phoneValidation';
 import { uploadImage } from './shared/uploadFile';
@@ -12,8 +11,7 @@ const generateBankReference = () =>
 // WhatsApp community group invite link (set in .env.local).
 const WHATSAPP_GROUP_URL = process.env.REACT_APP_WHATSAPP_GROUP_URL;
 
-// Paystack public key (set in .env.local). The registration fee is driven by
-// the ?tier= query param (set when arriving from a membership tier CTA).
+// Paystack public key (set in .env.local).
 const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
 
 // Date of Birth is collected as three plain <select>s instead of a native
@@ -101,11 +99,9 @@ const initialFormData = {
 };
 
 function FormPage() {
-  const [searchParams] = useSearchParams();
-  // The ?tier= query param (set by the homepage tier CTAs) picks the initial
-  // tier, but it stays changeable on the form itself.
-  const [tierKey, setTierKey] = useState(() => getTier(searchParams.get('tier')).key);
-  const tier = getTier(tierKey);
+  // Flat registration fee — every new signup is the 'standard' tier
+  // (already priced at ₦5,000), so there's no tier choice on the form.
+  const tier = getTier('standard');
   const REGISTRATION_FEE_NAIRA = tier.priceNaira;
 
   const [formData, setFormData] = useState(initialFormData);
@@ -543,7 +539,7 @@ function FormPage() {
         <div className="reference-note">
           <p>
             <strong>{formData.fullName}</strong> — {formData.email}<br />
-            {tier.name} tier — ₦{REGISTRATION_FEE_NAIRA.toLocaleString()}/yr
+            Registration fee — ₦{REGISTRATION_FEE_NAIRA.toLocaleString()}/yr
           </p>
         </div>
 
@@ -629,26 +625,6 @@ function FormPage() {
     <div className="form-container">
       <h1>🏛️ Zentriva Business & Professional Directory</h1>
       <p className="subtitle">Help us build a community of support and collaboration</p>
-
-      {/* Tier selection — pre-set by the homepage CTA, changeable here */}
-      <div className="tier-selector" role="radiogroup" aria-label="Membership tier">
-        {Object.values(MEMBERSHIP_TIERS).map((t) => (
-          <label
-            key={t.key}
-            className={`tier-option ${tierKey === t.key ? 'selected' : ''}`}
-          >
-            <input
-              type="radio"
-              name="membershipTier"
-              value={t.key}
-              checked={tierKey === t.key}
-              onChange={() => setTierKey(t.key)}
-            />
-            <span className="tier-option-name">{t.name}</span>
-            <span className="tier-option-price">₦{t.priceNaira.toLocaleString()}/yr</span>
-          </label>
-        ))}
-      </div>
 
       {validationError && (
         <p className="form-validation-error" role="alert">⚠️ {validationError}</p>
@@ -1360,7 +1336,7 @@ function FormPage() {
         </div>
 
         <p className="payment-notice">
-          {PAYSTACK_ENABLED ? '💳' : '🏦'} Your {tier.name} tier registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
+          {PAYSTACK_ENABLED ? '💳' : '🏦'} Your registration fee of ₦{REGISTRATION_FEE_NAIRA.toLocaleString()} is
           collected on the next step {PAYSTACK_ENABLED ? '— by card (Paystack) or bank transfer.' : 'by bank transfer. Card payment is on hold for now.'}
         </p>
 

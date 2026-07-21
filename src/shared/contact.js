@@ -1,3 +1,4 @@
 // Central contact points, so "Contact Support" links never drift apart.
-// TODO: replace with the cooperative's real support inbox before launch.
-export const SUPPORT_EMAIL = 'support@zentriva.org';
+// Must be an inbox on the Resend-verified sending domain (EMAIL_FROM in
+// .env.local) so replies and inbound routing actually work.
+export const SUPPORT_EMAIL = 'support@zentrivacoop.com';

@@ -1,63 +1,31 @@
 import { MEMBERSHIP_TIERS } from '../shared/membershipTiers';
 
-export const membershipTiers = [
-  {
-    key: 'standard',
-    eyebrow: 'Essential Access',
-    name: MEMBERSHIP_TIERS.standard.name,
-    description: 'For members starting their skill training and upskilling journey.',
-    price: MEMBERSHIP_TIERS.standard.priceNaira.toLocaleString(),
-    features: [
-      'Access to Core Training Programs',
-      'Digital Member Network',
-      'Email Support',
-    ],
-    cta: 'Get Started',
-    highlighted: false,
-  },
-  {
-    key: 'premium',
-    eyebrow: 'Full Program Access',
-    name: MEMBERSHIP_TIERS.premium.name,
-    description: 'Comprehensive training and mentorship for members ready to grow further.',
-    price: MEMBERSHIP_TIERS.premium.priceNaira.toLocaleString(),
-    features: [
-      'Unlimited Training Access',
-      'Dedicated Mentorship',
-      'Quarterly Community Workshops',
-      'Priority Access to New Programs',
-    ],
-    cta: 'Upgrade to Premium',
-    highlighted: true,
-  },
-  {
-    key: 'elite',
-    eyebrow: 'Full Cooperative Benefits',
-    name: MEMBERSHIP_TIERS.elite.name,
-    description: 'The complete membership experience, including venture and resource support.',
-    price: MEMBERSHIP_TIERS.elite.priceNaira.toLocaleString(),
-    features: [
-      'Support for Member Ventures',
-      'Access to Pooled Resources',
-      'Financial Inclusion Programs',
-    ],
-    cta: 'Inquire Now',
-    highlighted: false,
-  },
-];
+export const registrationFee = {
+  name: MEMBERSHIP_TIERS.standard.name,
+  description: 'One flat registration fee for full membership access.',
+  price: MEMBERSHIP_TIERS.standard.priceNaira.toLocaleString(),
+  features: [
+    'Access to Core Training Programs',
+    'Digital Member Network',
+    'Support for Member Ventures',
+    'Access to Pooled Resources',
+    'Email Support',
+  ],
+  cta: 'Register Now',
+};
 
 export const testimonials = [
   {
     quote:
       '"The training program gave me practical skills I could use immediately. Within months, the mentorship and community support helped me launch my own small business."',
     name: 'Amaka Nwosu',
-    role: 'Premium Member, Entrepreneur',
+    role: 'Zentriva Member, Entrepreneur',
   },
   {
     quote:
       '"Zentriva is more than a training provider — it\'s a community. Pooling resources with other members opened doors I couldn\'t have opened on my own."',
     name: 'David Okafor',
-    role: 'Elite Member, Tech Freelancer',
+    role: 'Zentriva Member, Tech Freelancer',
   },
 ];
 

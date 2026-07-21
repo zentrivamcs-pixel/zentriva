@@ -21,10 +21,12 @@ const MembershipId = lazy(() => import('./member/MembershipId'));
 const ProfileInfo = lazy(() => import('./member/ProfileInfo'));
 const SecurityPage = lazy(() => import('./member/SecurityPage'));
 const BillingPage = lazy(() => import('./member/BillingPage'));
+const SupportPage = lazy(() => import('./member/SupportPage'));
 const DirectoryPage = lazy(() => import('./member/DirectoryPage'));
 const ComingSoon = lazy(() => import('./member/ComingSoon'));
 const PrivacyPolicy = lazy(() => import('./legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./legal/TermsOfService'));
+const ContactPage = lazy(() => import('./contact/ContactPage'));
 const ResetPasswordPage = lazy(() => import('./member/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('./member/VerifyEmailPage'));
 
@@ -45,7 +47,8 @@ function App() {
     || location.pathname.startsWith('/member')
     || location.pathname.startsWith('/admin')
     || location.pathname.startsWith('/privacy')
-    || location.pathname.startsWith('/terms');
+    || location.pathname.startsWith('/terms')
+    || location.pathname.startsWith('/contact');
 
   // React Router doesn't reset scroll position on navigation (it's an SPA).
   // Reset on path changes only, so in-page anchors (e.g. "#benefits") can
@@ -79,6 +82,7 @@ function App() {
           <Route path="/register" element={<FormPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/contact" element={<ContactPage />} />
           {/* Public — the email reset link must work while logged out, so it
               lives outside the authenticated /member layout. */}
           <Route path="/member/reset" element={<ResetPasswordPage />} />
@@ -100,6 +104,7 @@ function App() {
             <Route path="profile" element={<ProfileInfo />} />
             <Route path="security" element={<SecurityPage />} />
             <Route path="billing" element={<BillingPage />} />
+            <Route path="support" element={<SupportPage />} />
             <Route path="benefits" element={<ComingSoon title="Benefits" icon="star" />} />
           </Route>
 

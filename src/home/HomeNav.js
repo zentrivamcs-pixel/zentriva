@@ -5,7 +5,7 @@ import Logo from '../shared/Logo';
 const NAV_LINKS = [
   { href: '#about', label: 'About' },
   { href: '#benefits', label: 'Benefits' },
-  { href: '#tiers', label: 'Tiers' },
+  { href: '#tiers', label: 'Registration' },
   { href: '#events', label: 'Events' },
   { href: '#testimonials', label: 'Testimonials' },
 ];

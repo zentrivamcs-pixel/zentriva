@@ -4,7 +4,7 @@ import { PAYSTACK_ENABLED, BANK_TRANSFER_DETAILS } from '../shared/paymentConfig
 
 const TABS = [
   { key: 'general', label: 'General', icon: 'settings_suggest' },
-  { key: 'membership', label: 'Membership Tiers', icon: 'badge' },
+  { key: 'membership', label: 'Registration Fee', icon: 'badge' },
   { key: 'payments', label: 'Payment Methods', icon: 'account_balance_wallet' },
   { key: 'security', label: 'Security & Access', icon: 'security' },
 ];
@@ -49,25 +49,25 @@ function MembershipSection() {
   return (
     <div>
       <SectionHeader
-        title="Membership Tier Pricing"
-        description="Registration fees charged for each membership tier."
+        title="Registration Fee"
+        description="The flat fee new members pay to register."
       />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {Object.values(MEMBERSHIP_TIERS).map((tier) => (
-          <div key={tier.key} className="p-5 border border-outline-variant rounded-xl bg-surface-container-low">
-            <span className="px-2 py-1 bg-primary-container text-on-primary text-label-sm font-bold rounded uppercase">
-              {tier.name}
-            </span>
-            <p className="font-headline-md text-headline-md text-primary mt-3">
-              ₦{tier.priceNaira.toLocaleString()}
-            </p>
-            <p className="text-label-sm text-on-surface-variant">per year</p>
-          </div>
-        ))}
+      <div className="max-w-xs">
+        <div className="p-5 border border-outline-variant rounded-xl bg-surface-container-low">
+          <span className="px-2 py-1 bg-primary-container text-on-primary text-label-sm font-bold rounded uppercase">
+            {MEMBERSHIP_TIERS.standard.name}
+          </span>
+          <p className="font-headline-md text-headline-md text-primary mt-3">
+            ₦{MEMBERSHIP_TIERS.standard.priceNaira.toLocaleString()}
+          </p>
+          <p className="text-label-sm text-on-surface-variant">per year</p>
+        </div>
       </div>
       <p className="text-label-sm text-outline mt-6">
-        Tier pricing is defined in <code>shared/membershipTiers.js</code> and shared by the
+        The fee is defined in <code>shared/membershipTiers.js</code> and shared by the
         registration form, billing, and finance reports — contact a developer to change it.
+        Members registered before this became a flat fee may still show a different historical
+        tier and amount on their record.
       </p>
     </div>
   );

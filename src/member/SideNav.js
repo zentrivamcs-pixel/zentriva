@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { sidebarNav } from './navConfig';
 import Logo from '../shared/Logo';
-import { SUPPORT_EMAIL } from '../shared/contact';
 
 function SideNav({ onLogout, tierLabel }) {
   return (
@@ -40,19 +39,6 @@ function SideNav({ onLogout, tierLabel }) {
       </nav>
 
       <div className="mt-auto border-t border-on-primary-container/10 pt-6 space-y-2">
-        <a
-          href="/#tiers"
-          className="block text-center w-full py-3 px-4 bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-lg mb-4 hover:opacity-90 transition-opacity no-underline"
-        >
-          Upgrade Tier
-        </a>
-        <a
-          className="flex items-center gap-3 px-4 py-2 text-on-primary-container opacity-80 hover:bg-primary/10 transition-all cursor-pointer"
-          href={`mailto:${SUPPORT_EMAIL}`}
-        >
-          <span className="material-symbols-outlined">help</span>
-          <span className="font-label-md text-label-md">Contact Support</span>
-        </a>
         <button
           type="button"
           onClick={onLogout}

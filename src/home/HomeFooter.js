@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../shared/Logo';
-import { SUPPORT_EMAIL } from '../shared/contact';
 
 const linkClass =
   'font-body-md text-body-md text-on-primary-container/80 hover:text-white transition-colors';
@@ -27,9 +26,9 @@ function HomeFooter() {
         <Link className={linkClass} to="/terms">
           Terms of Service
         </Link>
-        <a className={linkClass} href={`mailto:${SUPPORT_EMAIL}`}>
+        <Link className={linkClass} to="/contact">
           Contact Support
-        </a>
+        </Link>
       </div>
     </footer>
   );

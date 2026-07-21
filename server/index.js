@@ -12,7 +12,7 @@ const repo = require('../shared/membersRepo');
 const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
-const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail, cleanUrl } = require('../shared/validation');
+const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
 const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail } = require('../shared/email');
 const { verifySvixSignature } = require('../shared/webhookAuth');
 const { handleUpload } = require('@vercel/blob/client');
@@ -275,6 +275,33 @@ app.get('/api/me/payments', requireMember, wrap(async (req, res) => {
   res.json(await repo.listPaymentsForMember(db, req.memberId));
 }));
 
+// Stored as a row in the same inbound_messages table the Resend inbox
+// webhook writes to, so it shows up in the existing Admin Inbox. Mirrors
+// api/me/support.js. SUPPORT_TO_ADDRESS mirrors src/shared/contact.js's
+// SUPPORT_EMAIL — kept in sync manually, same convention as membershipTiers.js.
+app.post('/api/me/support', requireMember, wrap(async (req, res) => {
+  const SUPPORT_TO_ADDRESS = 'support@zentrivacoop.com';
+  const { subject, message } = req.body || {};
+  if (!message || !String(message).trim()) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+  const trimmedSubject = subject && String(subject).trim()
+    ? String(subject).trim().slice(0, 200)
+    : '(no subject)';
+  const trimmedMessage = String(message).trim().slice(0, 5000);
+
+  await inboxRepo.createInboundMessage(db, {
+    resendId: `member-${req.memberId}-${Date.now()}`,
+    from: req.member.email,
+    to: SUPPORT_TO_ADDRESS,
+    subject: trimmedSubject,
+    text: trimmedMessage,
+    receivedAt: new Date().toISOString(),
+  });
+
+  res.status(201).json({ ok: true });
+}));
+
 // --- Member directory ------------------------------------------------------------
 
 app.get('/api/directory', requireMember, wrap(async (req, res) => {
@@ -455,6 +482,34 @@ app.post('/api/inbox/mark-read', requireAdmin, wrap(async (req, res) => {
   if (id === undefined) return res.status(400).json({ error: 'id is required' });
   await inboxRepo.setInboundMessageRead(db, id, read !== false);
   res.json({ ok: true });
+}));
+
+// --- Public contact form ----------------------------------------------------------
+
+// Mirrors api/contact.js. Stored as a row in the same inbound_messages
+// table the Resend inbox webhook writes to, so it shows up in the existing
+// Admin Inbox. SUPPORT_TO_ADDRESS mirrors src/shared/contact.js's
+// SUPPORT_EMAIL — kept in sync manually, same convention as membershipTiers.js.
+app.post('/api/contact', wrap(async (req, res) => {
+  const SUPPORT_TO_ADDRESS = 'support@zentrivacoop.com';
+  const name = cleanString(req.body && req.body.name, 120);
+  const email = cleanEmail(req.body && req.body.email);
+  const message = cleanString(req.body && req.body.message, 5000);
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Name, email, and message are required' });
+  }
+  const subject = cleanString(req.body && req.body.subject, 200) || `Website contact form — ${name}`;
+
+  await inboxRepo.createInboundMessage(db, {
+    resendId: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    from: `${name} <${email}>`,
+    to: SUPPORT_TO_ADDRESS,
+    subject,
+    text: message,
+    receivedAt: new Date().toISOString(),
+  });
+
+  res.status(201).json({ ok: true });
 }));
 
 // --- File uploads (Vercel Blob) --------------------------------------------------

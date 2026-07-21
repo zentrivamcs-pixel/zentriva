@@ -18,13 +18,11 @@ test('renders the homepage hero', async () => {
   ).toBeInTheDocument();
 });
 
-test('renders the registration form with the default tier selected', async () => {
+test('renders the registration form', async () => {
   renderAt('/register');
   expect(
     await screen.findByRole('heading', { name: /business & professional directory/i })
   ).toBeInTheDocument();
-  // Standard is the default tier when no ?tier= param is given.
-  expect(await screen.findByRole('radio', { name: /standard/i })).toBeChecked();
 });
 
 test('unknown routes fall back to the homepage', async () => {
