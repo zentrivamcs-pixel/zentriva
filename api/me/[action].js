@@ -1,41 +1,20 @@
-// /api/me[...] — the logged-in member's own account:
-//   GET/PUT /api/me           — read/update own profile
-//   POST    /api/me/password  — change password
-//   GET     /api/me/payments  — own payment history
-//   POST    /api/me/support   — send a support message
-// Consolidated into one optional catch-all route so these four endpoints
-// share a single Vercel serverless function instead of four (Hobby plan
-// caps a deployment at 12 functions — see api/auth/[action].js,
-// api/inbox/[action].js, and api/members/[id]/[action].js).
+// POST /api/me/password — change password.
+// GET  /api/me/payments — own payment history.
+// POST /api/me/support  — send a support message.
+// Consolidated into one dynamic route so these three actions share a single
+// Vercel serverless function instead of three (Hobby plan caps a deployment
+// at 12 functions — see api/auth/[action].js, api/inbox/[action].js, and
+// api/members/[id]/[action].js). The base /api/me route (GET/PUT, no
+// action segment) stays in its own file: Vercel's non-Next.js /api routing
+// doesn't support an "optional" catch-all, only single dynamic segments and
+// required catch-alls, so a bare /api/me can't be matched from here.
 const { repo, getReadyDb, parseBody, requireMemberRecord, auth } = require('../_lib');
-const { cleanProfileUpdate, passwordError } = require('../../shared/validation');
+const { passwordError } = require('../../shared/validation');
 const inbox = require('../../shared/inboxRepo');
 
 // Mirrors src/shared/contact.js's SUPPORT_EMAIL — kept in sync manually,
 // same convention as shared/membershipTiers.js.
 const SUPPORT_TO_ADDRESS = 'support@zentrivacoop.com';
-
-async function index(req, res, db, member) {
-  if (req.method === 'GET') {
-    return res.status(200).json(repo.sanitizeMember(member));
-  }
-
-  if (req.method === 'PUT') {
-    // Cleaned (trimmed, length-capped) before the repo's field whitelist.
-    const { value: cleaned, errors } = cleanProfileUpdate(parseBody(req), repo.PROFILE_EDITABLE_FIELDS);
-    if (errors.length > 0) {
-      return res.status(400).json({ error: errors.join(', ') });
-    }
-    const { updated, member: fresh } = await repo.updateProfile(db, member.id, cleaned);
-    if (!updated) {
-      return res.status(400).json({ error: 'No editable fields provided' });
-    }
-    return res.status(200).json(repo.sanitizeMember(fresh));
-  }
-
-  res.setHeader('Allow', 'GET, PUT');
-  return res.status(405).json({ error: 'Method not allowed' });
-}
 
 // Bumps the member's token_version (logging out every other session) and
 // returns a fresh token so the current session stays signed in.
@@ -101,22 +80,17 @@ async function support(req, res, db, member) {
 const ACTIONS = { password, payments, support };
 
 module.exports = async (req, res) => {
-  const segments = [].concat(req.query.action || []);
-  const action = segments[0];
+  const handler = ACTIONS[req.query.action];
+  if (!handler) return res.status(404).json({ error: 'Not found' });
 
   try {
-    if (segments.length > 1) return res.status(404).json({ error: 'Not found' });
-
     const db = await getReadyDb();
     const member = await requireMemberRecord(req, res, db);
     if (!member) return;
 
-    if (!action) return await index(req, res, db, member);
-    const handler = ACTIONS[action];
-    if (!handler) return res.status(404).json({ error: 'Not found' });
     return await handler(req, res, db, member);
   } catch (err) {
-    console.error(`/api/me${action ? '/' + action : ''} error:`, err);
+    console.error(`/api/me/${req.query.action} error:`, err);
     return res.status(500).json({ error: 'Server error' });
   }
 };
