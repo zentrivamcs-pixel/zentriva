@@ -116,7 +116,7 @@ function DirectoryCard({ entry }) {
 }
 
 // The member-facing business directory — the product the registration form's
-// consent checkbox promises. Data comes from /api/directory (consented
+// consent checkbox promises. Data comes from /api/me/directory (consented
 // members, directory-safe fields only).
 function DirectoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,7 +126,7 @@ function DirectoryPage() {
 
   useEffect(() => {
     let cancelled = false;
-    memberApi('/api/directory')
+    memberApi('/api/me/directory')
       .then((data) => { if (!cancelled) setEntries(data); })
       .catch((err) => {
         if (!cancelled) {

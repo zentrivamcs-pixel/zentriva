@@ -1,8 +1,9 @@
-// POST /api/me/password — change password.
-// GET  /api/me/payments — own payment history.
-// POST /api/me/support  — send a support message.
-// Consolidated into one dynamic route so these three actions share a single
-// Vercel serverless function instead of three (Hobby plan caps a deployment
+// POST /api/me/password  — change password.
+// GET  /api/me/payments  — own payment history.
+// POST /api/me/support   — send a support message.
+// GET  /api/me/directory — the member-facing business directory.
+// Consolidated into one dynamic route so these actions share a single
+// Vercel serverless function instead of four (Hobby plan caps a deployment
 // at 12 functions — see api/auth/[action].js, api/inbox/[action].js, and
 // api/members/[id]/[action].js). The base /api/me route (GET/PUT, no
 // action segment) stays in its own file: Vercel's non-Next.js /api routing
@@ -77,7 +78,18 @@ async function support(req, res, db, member) {
   return res.status(201).json({ ok: true });
 }
 
-const ACTIONS = { password, payments, support };
+// Requires a member login; returns only consented members and only
+// directory-safe fields (the registration consent covers sharing these
+// for networking).
+async function directory(req, res, db) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  return res.status(200).json(await repo.listDirectory(db));
+}
+
+const ACTIONS = { password, payments, support, directory };
 
 module.exports = async (req, res) => {
   const handler = ACTIONS[req.query.action];

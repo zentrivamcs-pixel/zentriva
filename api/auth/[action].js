@@ -1,7 +1,8 @@
 // POST /api/auth/:action — member auth flows (check-email, login, claim,
-// forgot, reset). Consolidated into one dynamic route so the five actions
-// share a single Vercel serverless function instead of five (Hobby plan
-// caps a deployment at 12 functions).
+// forgot, reset, verify-email, resend-verification) plus admin-login.
+// Consolidated into one dynamic route so these actions share a single
+// Vercel serverless function instead of eight (Hobby plan caps a
+// deployment at 12 functions).
 const { repo, getReadyDb, parseBody, auth } = require('../_lib');
 const { isEmailEnabled, sendPasswordResetEmail, sendVerificationEmail } = require('../../shared/email');
 const { cleanEmail, passwordError } = require('../../shared/validation');
@@ -170,6 +171,23 @@ async function resendVerification(req, res, db) {
   });
 }
 
+// POST /api/auth/admin-login — exchanges the admin password for a signed
+// session token. The password lives only in the server env
+// (ADMIN_PASSWORD), never in the client bundle. Doesn't touch the member
+// database, unlike every other action here.
+async function adminLogin(req, res) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    return res.status(500).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
+  }
+  const { password } = parseBody(req);
+  if (!password || !auth.safeEqual(password, adminPassword)) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  const token = auth.signToken({ role: 'admin', sub: 'admin' }, auth.ADMIN_TOKEN_TTL);
+  return res.status(200).json({ token });
+}
+
 const ACTIONS = {
   'check-email': checkEmail,
   login,
@@ -178,6 +196,7 @@ const ACTIONS = {
   reset,
   'verify-email': verifyEmail,
   'resend-verification': resendVerification,
+  'admin-login': adminLogin,
 };
 
 module.exports = async (req, res) => {

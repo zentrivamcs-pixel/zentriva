@@ -92,7 +92,7 @@ function requireMember(req, res, next) {
 
 // --- Admin auth ---------------------------------------------------------------
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/auth/admin-login', (req, res) => {
   if (!ADMIN_PASSWORD) {
     return res.status(500).json({ error: 'ADMIN_PASSWORD is not configured on the server' });
   }
@@ -304,7 +304,7 @@ app.post('/api/me/support', requireMember, wrap(async (req, res) => {
 
 // --- Member directory ------------------------------------------------------------
 
-app.get('/api/directory', requireMember, wrap(async (req, res) => {
+app.get('/api/me/directory', requireMember, wrap(async (req, res) => {
   res.json(await repo.listDirectory(db));
 }));
 

@@ -17,7 +17,7 @@ function AdminGate() {
     try {
       // The password is verified server-side; the client only ever holds a
       // short-lived signed session token.
-      const { token } = await publicApi('/api/admin/login', {
+      const { token } = await publicApi('/api/auth/admin-login', {
         method: 'POST',
         body: JSON.stringify({ password }),
       });
