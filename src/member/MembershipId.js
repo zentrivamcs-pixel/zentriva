@@ -18,8 +18,8 @@ function MembershipId() {
   const { avatarSrc } = useProfile();
 
   // The card's front/back, the download, and the print output all draw from
-  // this one object, so the contact row (email/phone) and photo show up
-  // identically everywhere the card appears.
+  // this one object, so every face shows identical details wherever the card
+  // appears.
   const member = useMemo(() => ({ ...view, avatarSrc }), [view, avatarSrc]);
 
   const qrValue = useMemo(() => buildMembershipQrValue(member), [member]);

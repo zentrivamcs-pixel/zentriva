@@ -3,21 +3,33 @@ import { Outlet } from 'react-router-dom';
 import '../styles/tailwind.css';
 import AdminSideNav from './AdminSideNav';
 import AdminTopNav from './AdminTopNav';
-import { AdminViewModal, AdminEditModal } from './AdminModals';
+import { AdminViewModal, AdminEditModal, AdminPaymentModal } from './AdminModals';
 import { EDIT_FIELDS } from './adminHelpers';
 import { adminApi } from '../shared/api';
 
-// Fetches the member list once and shares it (plus CRUD handlers and the
-// view/edit modals) with every admin page via Outlet context, so switching
-// between Dashboard and Members doesn't re-fetch or lose in-flight state.
+// Fetches the member list and the inbox once and shares them (plus CRUD
+// handlers and the view/edit modals) with every admin page via Outlet
+// context, so switching between Dashboard and Members doesn't re-fetch or
+// lose in-flight state.
 function AdminLayout({ onLogout }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Inbound support mail (contact form + Resend inbound), loaded here so the
+  // Dashboard and the sidebar's unread count see the same list the Inbox
+  // page does.
+  const [messages, setMessages] = useState([]);
+  const [inboxLoading, setInboxLoading] = useState(true);
+  const [inboxError, setInboxError] = useState('');
 
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [viewing, setViewing] = useState(null);
+
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
 
   // Mobile: the sidebar becomes a slide-in drawer toggled from the top nav.
   const [navOpen, setNavOpen] = useState(false);
@@ -45,6 +57,42 @@ function AdminLayout({ onLogout }) {
   }, [handleAuthError]);
 
   useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  // A failure here is surfaced (inboxError), never swallowed — an empty
+  // inbox and an inbox that failed to load look identical otherwise, which
+  // is exactly how missing mail goes unnoticed.
+  const loadInbox = useCallback(async () => {
+    setInboxLoading(true);
+    setInboxError('');
+    try {
+      const data = await adminApi('/api/inbox/list');
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error loading inbox:', error);
+      if (!handleAuthError(error)) {
+        setInboxError(error.message || 'Could not load messages.');
+      }
+    } finally {
+      setInboxLoading(false);
+    }
+  }, [handleAuthError]);
+
+  useEffect(() => { loadInbox(); }, [loadInbox]);
+
+  const markMessageRead = useCallback(async (message, read = true) => {
+    setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, is_read: read } : m)));
+    try {
+      await adminApi('/api/inbox/mark-read', {
+        method: 'POST',
+        body: JSON.stringify({ id: message.id, read }),
+      });
+    } catch (error) {
+      console.error('Error marking message read:', error);
+      // Put the row back the way it was — the server disagreed.
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, is_read: !read } : m)));
+      handleAuthError(error);
+    }
+  }, [handleAuthError]);
 
   // Stopgap password reset: clears the member's portal password so they can
   // re-activate with their email + payment reference (or a reset email).
@@ -79,6 +127,34 @@ function AdminLayout({ onLogout }) {
     } catch (error) {
       console.error('Error updating payment status:', error);
       if (!handleAuthError(error)) alert(`Failed to ${decision} the payment`);
+    }
+  };
+
+  // Hand-edit of the payment record (status / method / reference). Unlike
+  // the approve/reject decision above, this sends the member no email.
+  const openPaymentEdit = (member) => {
+    setViewing(null);
+    setPaymentError('');
+    setEditingPayment(member);
+  };
+
+  const handlePaymentSave = async (fields) => {
+    setPaymentSaving(true);
+    setPaymentError('');
+    try {
+      const updated = await adminApi(`/api/members/${editingPayment.id}/payment`, {
+        method: 'POST',
+        body: JSON.stringify(fields),
+      });
+      setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setEditingPayment(null);
+    } catch (error) {
+      console.error('Error updating payment details:', error);
+      if (!handleAuthError(error)) {
+        setPaymentError(error.message || 'Failed to save the payment details');
+      }
+    } finally {
+      setPaymentSaving(false);
     }
   };
 
@@ -138,12 +214,20 @@ function AdminLayout({ onLogout }) {
         onLogout={onLogout}
         open={navOpen}
         onClose={() => setNavOpen(false)}
+        unreadCount={messages.filter((m) => !m.is_read).length}
       />
 
       <div className="md:ml-64">
         <AdminTopNav onMenuToggle={() => setNavOpen((open) => !open)} />
         <main className="p-margin-mobile md:p-margin-desktop space-y-gutter">
-          <Outlet context={{ members, loading, reload: loadMembers, setViewing, openEdit, handleDelete, handleResetAccount, handlePaymentDecision }} />
+          <Outlet
+            context={{
+              members, loading, reload: loadMembers,
+              setViewing, openEdit, handleDelete, handleResetAccount,
+              handlePaymentDecision, openPaymentEdit,
+              messages, inboxLoading, inboxError, reloadInbox: loadInbox, markMessageRead,
+            }}
+          />
         </main>
       </div>
 
@@ -155,6 +239,16 @@ function AdminLayout({ onLogout }) {
           onResetAccount={() => handleResetAccount(viewing)}
           onApprovePayment={() => handlePaymentDecision(viewing, 'approve')}
           onRejectPayment={() => handlePaymentDecision(viewing, 'reject')}
+          onEditPayment={() => openPaymentEdit(viewing)}
+        />
+      )}
+      {editingPayment && (
+        <AdminPaymentModal
+          member={editingPayment}
+          saving={paymentSaving}
+          error={paymentError}
+          onSave={handlePaymentSave}
+          onClose={() => setEditingPayment(null)}
         />
       )}
       {editing && (

@@ -49,6 +49,37 @@ function parseBody(req) {
   return req.body;
 }
 
+// Returns the request body as a string, for the webhook routes that verify a
+// signature computed over the exact bytes sent (Paystack HMAC, Svix/Resend).
+//
+// Vercel's Node helpers may already have consumed the request stream before
+// the handler runs — `config.api.bodyParser` is a Next.js switch and is not
+// guaranteed to disable them here. Reading the stream again in that case
+// yields nothing AND never resolves ('end' has already fired, so a listener
+// attached now is never called), which is why this checks the platform's own
+// buffers first and only falls back to reading the stream while it is
+// genuinely still readable. A re-serialized body is a last resort: it usually
+// matches byte-for-byte for compact webhook JSON, but not always — which is
+// why the raw paths above come first.
+function readRawBody(req) {
+  if (Buffer.isBuffer(req.rawBody)) return Promise.resolve(req.rawBody.toString('utf8'));
+  if (typeof req.rawBody === 'string') return Promise.resolve(req.rawBody);
+
+  const alreadyRead = req.readableEnded || req.readable === false || req.body !== undefined;
+  if (alreadyRead) {
+    if (typeof req.body === 'string') return Promise.resolve(req.body);
+    if (req.body && typeof req.body === 'object') return Promise.resolve(JSON.stringify(req.body));
+    return Promise.resolve('');
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
 function requireAdmin(req, res) {
   if (auth.isAdmin(req)) return true;
   res.status(401).json({ error: 'Admin authentication required' });
@@ -73,6 +104,6 @@ async function requireMemberRecord(req, res, db) {
 }
 
 module.exports = {
-  repo, getReadyDb, parseBody, verifyPaystackPayment,
+  repo, getReadyDb, parseBody, readRawBody, verifyPaystackPayment,
   requireAdmin, requireMemberRecord, auth,
 };

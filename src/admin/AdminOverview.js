@@ -61,7 +61,7 @@ const CategoryBadge = ({ category }) => {
 };
 
 function AdminOverview() {
-  const { members, loading, setViewing, openEdit } = useOutletContext();
+  const { members, loading, setViewing, openEdit, messages, inboxError } = useOutletContext();
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const handleExportPdf = async () => {
@@ -102,6 +102,12 @@ function AdminOverview() {
     discounts: countWhere(members, 'offer_discounts', 'Yes'),
     employers: countWhere(members, 'employs_staff', 'Yes'),
   }), [members]);
+
+  // Inbound support mail (contact form + Resend inbound), newest first — the
+  // dashboard shows the latest few so messages don't sit unseen behind a
+  // nav item nobody clicked.
+  const recentMessages = useMemo(() => (messages || []).slice(0, 5), [messages]);
+  const unreadMessages = useMemo(() => (messages || []).filter((m) => !m.is_read).length, [messages]);
 
   const recentMembers = useMemo(() => (
     [...members]
@@ -255,6 +261,54 @@ function AdminOverview() {
               Edits and deletions here take effect immediately and cannot be undone. Double-check before saving.
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden mt-gutter">
+        <div className="p-6 border-b border-outline-variant flex flex-wrap justify-between items-center gap-3">
+          <div className="flex items-center gap-3">
+            <h4 className="font-headline-md text-primary">Recent Messages</h4>
+            {unreadMessages > 0 && (
+              <span className="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-label-sm font-bold">
+                {unreadMessages} unread
+              </span>
+            )}
+          </div>
+          <Link to="/admin/inbox" className="text-primary text-label-sm font-bold no-underline hover:underline">
+            Open Inbox
+          </Link>
+        </div>
+        <div className="divide-y divide-outline-variant/30">
+          {inboxError ? (
+            <p className="px-6 py-8 text-center text-on-error-container bg-error-container/40" role="alert">
+              Couldn't load messages — {inboxError}
+            </p>
+          ) : recentMessages.length === 0 ? (
+            <p className="px-6 py-8 text-center text-on-surface-variant">No messages received yet.</p>
+          ) : (
+            recentMessages.map((m) => (
+              <Link
+                key={m.id}
+                to="/admin/inbox"
+                className="px-6 py-4 flex items-center gap-4 no-underline hover:bg-surface-container-low/50 transition-colors"
+              >
+                <span className={`material-symbols-outlined ${m.is_read ? 'text-outline' : 'text-primary'}`}>
+                  {m.is_read ? 'drafts' : 'mark_email_unread'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate ${m.is_read ? 'text-on-surface-variant' : 'font-bold text-on-surface'}`}>
+                    {m.subject || '(no subject)'}
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant truncate">
+                    {m.from_address || 'Unknown sender'}
+                  </p>
+                </div>
+                <span className="text-label-sm text-outline whitespace-nowrap">
+                  {formatDate(m.received_at || m.created_at)}
+                </span>
+              </Link>
+            ))
+          )}
         </div>
       </section>
 

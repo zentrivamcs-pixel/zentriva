@@ -4,20 +4,7 @@
 // source of truth even if a user closes the tab between paying and the
 // client-side save completing.
 const crypto = require('crypto');
-const { repo, getReadyDb } = require('../_lib');
-
-// Signature is computed over the raw request body, so body parsing is
-// disabled and the stream is read manually.
-module.exports.config = { api: { bodyParser: false } };
-
-function readRawBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
-}
+const { repo, getReadyDb, readRawBody } = require('../_lib');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -31,14 +18,20 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Signature is computed over the exact bytes Paystack sent — see
+    // readRawBody in api/_lib.js for why the stream can't just be re-read.
     const raw = await readRawBody(req);
     const signature = req.headers['x-paystack-signature'];
-    const expected = crypto.createHmac('sha512', secret).update(raw).digest('hex');
+    const expected = crypto.createHmac('sha512', secret).update(raw, 'utf8').digest('hex');
     if (!signature || signature !== expected) {
+      console.error('POST /api/paystack/webhook: signature rejected', {
+        hasSignature: !!signature,
+        bodyLength: raw.length,
+      });
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
-    const event = JSON.parse(raw.toString('utf8'));
+    const event = JSON.parse(raw);
 
     if (event.event === 'charge.success' && event.data) {
       const db = await getReadyDb();
@@ -52,3 +45,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 };
+
+// Set AFTER the handler assignment: `module.exports = handler` replaces the
+// exports object, so a `module.exports.config` written above it is discarded.
+module.exports.config = { api: { bodyParser: false } };

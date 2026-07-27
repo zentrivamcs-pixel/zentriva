@@ -58,10 +58,30 @@ Vercel deploys from a Git repo. Create a repo and push the `ctca-business-form` 
 | `REACT_APP_PAYSTACK_PUBLIC_KEY` | Paystack public key | build |
 | `REACT_APP_WHATSAPP_GROUP_URL` | your WhatsApp group invite link | build |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token — passport photos and bank-transfer payment proof uploads fail without this. Create a Blob store under Storage → Create Database → Blob and link it to the project; Vercel sets this automatically | runtime |
+| `RESEND_API_KEY` | Resend API key. Sends registration, verification, password-reset and payment emails, **and** fetches the body of inbound mail for the admin Inbox | runtime |
+| `EMAIL_FROM` | Sender on your Resend-verified domain, e.g. `Zentriva <no-reply@zentrivacoop.com>`. Email stays disabled until this and `RESEND_API_KEY` are both set | runtime |
+| `APP_BASE_URL` | Public site origin used in email links, e.g. `https://zentrivacoop.com` | runtime |
+| `RESEND_WEBHOOK_SECRET` | Signing secret for the Resend webhook that delivers inbound mail. **Without it every inbound email is rejected and never reaches the admin Inbox** | runtime |
 
 > `REACT_APP_*` values are baked into the JS bundle at **build time** — if you change
-> one later, redeploy. `TURSO_*` values are read at **runtime** by the functions.
-> Add all four to the **Production** environment (and Preview, if you use it).
+> one later, redeploy. Every other value here is read at **runtime** by the functions.
+> Add them all to the **Production** environment (and Preview, if you use it).
+
+### Receiving mail in the admin Inbox
+
+Two separate things land in Admin → Inbox:
+
+- **Website contact form** (`/contact`) — written straight to the database by
+  `POST /api/contact`. Needs no Resend setup at all; if these are missing, the
+  problem is the database or the API, not email.
+- **Real email to your support address** — needs Resend Inbound:
+  1. Resend dashboard → your domain → enable **Inbound**, add the MX record it shows.
+  2. **Webhooks → Add Webhook**, URL `https://<your-domain>/api/inbox/receive`,
+     event **`email.received`** only.
+  3. Copy the webhook's signing secret into `RESEND_WEBHOOK_SECRET` and redeploy.
+
+  A rejected delivery is logged by the function (`signature rejected`, with the
+  headers it did/didn't see) — check the Vercel function logs if mail isn't arriving.
 
 ---
 

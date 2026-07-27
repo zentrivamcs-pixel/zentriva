@@ -176,3 +176,17 @@ export const PAYMENT_STATUS_LABELS = {
   pending_review: { label: 'Pending Review', className: 'bg-tertiary-container text-on-tertiary-container' },
   rejected: { label: 'Rejected', className: 'bg-error-container text-on-error-container' },
 };
+
+export const PAYMENT_METHOD_LABELS = {
+  paystack: 'Paystack',
+  bank_transfer: 'Bank Transfer',
+};
+
+// The values an admin may set by hand in the Edit Payment dialog. These must
+// stay in step with PAYMENT_STATUSES / PAYMENT_METHODS in
+// shared/validation.js, which is what actually enforces them server-side.
+export const PAYMENT_STATUS_OPTIONS = Object.entries(PAYMENT_STATUS_LABELS)
+  .map(([value, { label }]) => ({ value, label }));
+
+export const PAYMENT_METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS)
+  .map(([value, label]) => ({ value, label }));

@@ -1,6 +1,9 @@
 import React from 'react';
 import Logo from '../shared/Logo';
 
+// Mirrors the back face drawn in generateMembershipBadge.js, so the card on
+// screen matches the one that gets downloaded and printed — including the
+// omission of the holder's email and phone number (see the comment there).
 function MembershipCardBack({ member, onFlip }) {
   const rows = [
     [
@@ -12,12 +15,6 @@ function MembershipCardBack({ member, onFlip }) {
       ['Member Since', member.memberSince],
     ],
   ];
-  if (member.email || member.phone) {
-    const contactRow = [];
-    if (member.email) contactRow.push(['Email', member.email]);
-    if (member.phone) contactRow.push(['Phone', member.phone]);
-    rows.push(contactRow);
-  }
 
   return (
     <div

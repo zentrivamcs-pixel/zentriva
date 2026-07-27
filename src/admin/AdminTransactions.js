@@ -1,14 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { getTier } from '../shared/membershipTiers';
-import { formatDate, searchableText, PAYMENT_STATUS_LABELS } from './adminHelpers';
+import { formatDate, searchableText, PAYMENT_STATUS_LABELS, PAYMENT_METHOD_LABELS as METHOD_LABELS } from './adminHelpers';
 
 const nairaFmt = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
-
-const METHOD_LABELS = {
-  bank_transfer: 'Bank Transfer',
-  paystack: 'Paystack',
-};
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All statuses' },
@@ -28,7 +23,7 @@ const METHOD_FILTERS = [
 // separate transactions table to join against yet, so this page derives its
 // rows from the same member list every other admin page already has loaded.
 function AdminTransactions() {
-  const { members, loading, handlePaymentDecision } = useOutletContext();
+  const { members, loading, handlePaymentDecision, openPaymentEdit } = useOutletContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
 
@@ -206,26 +201,34 @@ function AdminTransactions() {
                         ) : '—'}
                       </td>
                       <td className="px-6 py-4">
-                        {isPending ? (
-                          <div className="flex justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handlePaymentDecision(member, 'approve')}
-                              className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePaymentDecision(member, 'reject')}
-                              className="px-3 py-1.5 border border-error/40 text-error rounded-lg text-label-sm hover:bg-error/10 transition-colors bg-transparent"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="text-center text-label-sm text-outline">—</p>
-                        )}
+                        <div className="flex justify-center items-center gap-2">
+                          {isPending && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handlePaymentDecision(member, 'approve')}
+                                className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePaymentDecision(member, 'reject')}
+                                className="px-3 py-1.5 border border-error/40 text-error rounded-lg text-label-sm hover:bg-error/10 transition-colors bg-transparent"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            title="Edit payment details"
+                            onClick={() => openPaymentEdit(member)}
+                            className="bg-transparent p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">edit</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { adminApi } from '../shared/api';
+import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -17,58 +17,71 @@ function formatDate(iso) {
 // dangerouslySetInnerHTML, which would execute attacker HTML in this
 // authenticated admin page.
 function AdminInbox() {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { messages, inboxLoading, inboxError, reloadInbox, markMessageRead } = useOutletContext();
   const [selectedId, setSelectedId] = useState(null);
   const [view, setView] = useState('text'); // 'text' | 'html'
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await adminApi('/api/inbox/list');
-      setMessages(data || []);
-    } catch (error) {
-      console.error('Error loading inbox:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
   const selected = messages.find((m) => m.id === selectedId) || null;
 
-  const openMessage = async (message) => {
+  const openMessage = (message) => {
     setSelectedId(message.id);
     setView(message.text_body ? 'text' : 'html');
-    if (!message.is_read) {
-      setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, is_read: true } : m)));
-      try {
-        await adminApi('/api/inbox/mark-read', {
-          method: 'POST',
-          body: JSON.stringify({ id: message.id, read: true }),
-        });
-      } catch (error) {
-        console.error('Error marking message read:', error);
-      }
-    }
+    if (!message.is_read) markMessageRead(message, true);
   };
 
-  if (loading) {
+  if (inboxLoading) {
     return <p className="text-on-surface-variant text-body-md">Loading inbox…</p>;
   }
 
   return (
     <>
-      <div className="mb-gutter">
-        <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Inbox</h2>
-        <p className="text-on-surface-variant text-body-md">Email received at your Zentriva support address.</p>
+      <div className="mb-gutter flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Inbox</h2>
+          <p className="text-on-surface-variant text-body-md">
+            Messages from the website contact form and email received at your Zentriva support address.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {selected && (
+            <button
+              type="button"
+              onClick={() => markMessageRead(selected, !selected.is_read)}
+              className="px-4 py-2 border border-outline-variant rounded-lg text-label-md hover:bg-surface-container-low transition-colors bg-transparent"
+            >
+              Mark as {selected.is_read ? 'unread' : 'read'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={reloadInbox}
+            className="px-4 py-2 border border-outline-variant rounded-lg text-label-md flex items-center gap-2 hover:bg-surface-container-low transition-colors bg-transparent"
+          >
+            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* A failed load and an empty inbox are not the same thing — say which. */}
+      {inboxError && (
+        <div className="mb-gutter p-4 rounded-xl bg-error-container text-on-error-container" role="alert">
+          <p className="text-body-md font-bold">Couldn't load messages</p>
+          <p className="text-body-sm">{inboxError}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,360px)_1fr] gap-gutter">
         <div className="bg-surface-container-lowest rounded-xl shadow-sm divide-y divide-outline-variant/20 overflow-hidden">
-          {messages.length === 0 && (
-            <p className="text-on-surface-variant text-body-sm p-6">No messages yet.</p>
+          {messages.length === 0 && !inboxError && (
+            <div className="p-6 space-y-2">
+              <p className="text-on-surface-variant text-body-sm">No messages yet.</p>
+              <p className="text-outline text-label-sm">
+                Contact-form submissions appear here immediately. Email sent to your support address
+                needs Resend Inbound plus the <code>RESEND_WEBHOOK_SECRET</code> and{' '}
+                <code>RESEND_API_KEY</code> environment variables — see DEPLOY.md.
+              </p>
+            </div>
           )}
           {messages.map((m) => (
             <button

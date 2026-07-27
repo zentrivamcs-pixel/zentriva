@@ -17,7 +17,7 @@
 //   (no bleed, rounded corners) is right for home printing and on-screen use.
 //
 // TEXT SAFETY
-// - Member-supplied values (full name, tier, ID, email) are auto-fitted:
+// - Member-supplied values (full name, tier, ID) are auto-fitted:
 //   the font shrinks toward a minimum size, then the text is ellipsized as
 //   a last resort — long names can never collide with the QR panel or run
 //   off the card.
@@ -484,8 +484,11 @@ function drawBack(ctx, member, logoImage, bleed = 0) {
   const colWidth = maxWidth / 2 - 24;
   const rowGap = 58;
 
-  // Core rows are always shown; a contact row appears only when the member
-  // record actually carries an email or phone.
+  // Membership facts only. The holder's email and phone number are
+  // deliberately NOT printed: a physical card gets carried, lost, and handed
+  // over for inspection, so it should identify the member without exposing
+  // their personal contact details to whoever is holding it. Anyone who
+  // finds the card contacts Zentriva (see the notice above), not the member.
   const rows = [
     [
       ['DATE ISSUED', member.issuedDate],
@@ -496,12 +499,6 @@ function drawBack(ctx, member, logoImage, bleed = 0) {
       ['MEMBER SINCE', member.memberSince],
     ],
   ];
-  if (member.email || member.phone) {
-    const contactRow = [];
-    if (member.email) contactRow.push(['EMAIL', member.email]);
-    if (member.phone) contactRow.push(['PHONE', member.phone]);
-    rows.push(contactRow);
-  }
 
   const gridHeight = (rows.length - 1) * rowGap + 34;
   const signatureHeight = 30;

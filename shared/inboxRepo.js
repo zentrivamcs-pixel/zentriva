@@ -47,15 +47,32 @@ function deserialize(row) {
 
 // Idempotent on resend_id — Svix (and therefore Resend) retries webhook
 // deliveries, so the same email.received event can arrive more than once.
+//
+// The conflict path fills in blanks rather than doing nothing: when the
+// webhook lands but fetching the full message fails, a metadata-only row is
+// stored so the message is at least visible in the admin Inbox, and the
+// retry that does carry the body updates that row in place. COALESCE keeps
+// whichever version had content, so a retry can never blank out a message
+// that was already stored in full.
 async function createInboundMessage(db, msg) {
   await db.execute({
     sql: `INSERT INTO inbound_messages
           (resend_id, from_address, to_address, subject, text_body, html_body, attachments, received_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(resend_id) DO NOTHING`,
+          ON CONFLICT(resend_id) DO UPDATE SET
+            from_address = COALESCE(excluded.from_address, from_address),
+            to_address   = COALESCE(excluded.to_address, to_address),
+            subject      = COALESCE(excluded.subject, subject),
+            text_body    = COALESCE(excluded.text_body, text_body),
+            html_body    = COALESCE(excluded.html_body, html_body),
+            attachments  = COALESCE(excluded.attachments, attachments)`,
     args: [
-      msg.resendId, msg.from, msg.to, msg.subject || null,
-      msg.text || null, msg.html || null, JSON.stringify(msg.attachments || []),
+      msg.resendId,
+      msg.from ? String(Array.isArray(msg.from) ? msg.from.join(', ') : msg.from) : null,
+      msg.to ? String(Array.isArray(msg.to) ? msg.to.join(', ') : msg.to) : null,
+      msg.subject || null,
+      msg.text || null, msg.html || null,
+      msg.attachments && msg.attachments.length ? JSON.stringify(msg.attachments) : null,
       msg.receivedAt || new Date().toISOString(),
     ],
   });

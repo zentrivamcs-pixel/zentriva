@@ -6,7 +6,7 @@ import { SUPPORT_EMAIL } from '../shared/contact';
 
 // Fixed sidebar on md+ screens; a slide-in drawer (with backdrop) on mobile,
 // toggled from the top nav's hamburger.
-function AdminSideNav({ onLogout, open, onClose }) {
+function AdminSideNav({ onLogout, open, onClose, unreadCount = 0 }) {
   return (
     <>
       {/* Mobile backdrop */}
@@ -49,6 +49,14 @@ function AdminSideNav({ onLogout, open, onClose }) {
             >
               <span className="material-symbols-outlined">{item.icon}</span>
               <span className="font-label-md text-label-md">{item.label}</span>
+              {item.to === '/admin/inbox' && unreadCount > 0 && (
+                <span
+                  className="ml-auto mr-4 min-w-[22px] px-1.5 py-0.5 rounded-full bg-tertiary-fixed-dim text-tertiary-container text-label-sm font-bold text-center"
+                  aria-label={`${unreadCount} unread messages`}
+                >
+                  {unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

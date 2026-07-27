@@ -547,6 +547,74 @@ async function setPaymentStatus(db, id, status) {
   return getMember(db, id);
 }
 
+// A member's payment_status and the status on their payments row use
+// different vocabularies: the member record says 'pending_review', the
+// payments ledger (shared with Paystack's own values) says 'pending'.
+const PAYMENT_ROW_STATUS = { paid: 'paid', rejected: 'rejected', pending_review: 'pending' };
+
+// Admin edit of a member's payment details — status, method, and reference.
+// Deliberately separate from updateMember (payment columns are excluded from
+// the generic admin PUT, see PAYMENT_COLUMNS) so payment state only ever
+// changes through a call that means to change it, and so the payments row
+// backing the member's billing history is kept in step.
+//
+// Unlike setPaymentStatus (the approve/reject buttons) this sends no email —
+// it's for corrections, not for notifying the member of a decision.
+async function updatePaymentDetails(db, id, fields) {
+  const existing = await getMember(db, id);
+  if (!existing) return null;
+
+  const updates = {};
+  for (const key of ['payment_status', 'payment_method', 'payment_reference']) {
+    if (fields[key] !== undefined) updates[key] = fields[key];
+  }
+  const keys = Object.keys(updates);
+  if (keys.length === 0) return existing;
+
+  const newReference = updates.payment_reference || existing.payment_reference;
+  const referenceChanged = !!(updates.payment_reference && updates.payment_reference !== existing.payment_reference);
+
+  // members.payment_reference is uniquely indexed; check first so the clash
+  // comes back as a clear 409 instead of a driver error.
+  if (referenceChanged) {
+    const clash = await db.execute({
+      sql: 'SELECT 1 FROM members WHERE payment_reference = ? AND id != ? LIMIT 1',
+      args: [newReference, id],
+    });
+    if (clash.rows.length > 0) {
+      throw new ConflictError('DUPLICATE_REFERENCE', 'Another member already has that payment reference');
+    }
+  }
+
+  await db.execute({
+    sql: `UPDATE members SET ${keys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
+    args: [...keys.map((key) => updates[key]), id],
+  });
+
+  // Follow the rename on the ledger first, then apply the status to whatever
+  // row the member now points at.
+  if (referenceChanged && existing.payment_reference) {
+    try {
+      await db.execute({
+        sql: 'UPDATE payments SET reference = ? WHERE reference = ?',
+        args: [newReference, existing.payment_reference],
+      });
+    } catch (err) {
+      // payments.reference is UNIQUE — if a row already holds the new
+      // reference, leave the ledger alone rather than failing the edit.
+      console.warn(`Could not re-point payment ${existing.payment_reference} -> ${newReference}:`, err.message);
+    }
+  }
+  if (updates.payment_status && newReference) {
+    await db.execute({
+      sql: 'UPDATE payments SET status = ? WHERE reference = ?',
+      args: [PAYMENT_ROW_STATUS[updates.payment_status] || updates.payment_status, newReference],
+    });
+  }
+
+  return getMember(db, id);
+}
+
 // --- Payments -------------------------------------------------------------------
 
 async function listPaymentsForMember(db, memberId) {
@@ -595,5 +663,5 @@ module.exports = {
   createPasswordReset, consumePasswordReset,
   createEmailVerification, consumeEmailVerification, markEmailVerified,
   getMemberWithMembershipId, updateProfile, listDirectory,
-  listPaymentsForMember, recordWebhookPayment, setPaymentStatus,
+  listPaymentsForMember, recordWebhookPayment, setPaymentStatus, updatePaymentDetails,
 };

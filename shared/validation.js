@@ -19,6 +19,10 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const GENDERS = ['Male', 'Female'];
 const CATEGORIES = ['Executive Member', 'Non-Executive Member'];
 const YES_NO = ['Yes', 'No'];
+// Payment state an admin may set by hand (see cleanPaymentUpdate). Mirrors
+// the values registration writes in shared/membersRepo.js.
+const PAYMENT_STATUSES = ['paid', 'pending_review', 'rejected'];
+const PAYMENT_METHODS = ['paystack', 'bank_transfer'];
 const YEARS_IN_BUSINESS = ['Less than 1 year', '1 – 3 years', '4 – 7 years', 'More than 7 years'];
 
 const PASSWORD_MIN = 8;
@@ -220,8 +224,45 @@ function cleanAdminWrite(body) {
   return cleanFields(body);
 }
 
+// Admin edit of a member's payment details. Only the three payment fields an
+// admin is allowed to correct by hand, each checked against the same rules
+// registration uses. Returns { value, errors }; only the fields actually
+// present in `body` appear in `value`, so a partial edit stays partial.
+// An invalid value is an error rather than a silent drop — payment state is
+// exactly the kind of field where quietly saving nothing is worse than
+// refusing the edit.
+function cleanPaymentUpdate(body) {
+  const value = {};
+  const errors = [];
+  if (!body) return { value, errors };
+
+  if (body.payment_status !== undefined) {
+    const status = cleanEnum(body.payment_status, PAYMENT_STATUSES);
+    if (!status) errors.push(`payment status must be one of: ${PAYMENT_STATUSES.join(', ')}`);
+    else value.payment_status = status;
+  }
+
+  if (body.payment_method !== undefined) {
+    const method = cleanEnum(body.payment_method, PAYMENT_METHODS);
+    if (!method) errors.push(`payment method must be one of: ${PAYMENT_METHODS.join(', ')}`);
+    else value.payment_method = method;
+  }
+
+  if (body.payment_reference !== undefined) {
+    const reference = typeof body.payment_reference === 'string' ? body.payment_reference.trim() : '';
+    // A member's reference is how they claim their portal account, so it can
+    // be corrected but never cleared.
+    if (!reference) errors.push('payment reference cannot be empty');
+    else if (!REFERENCE_RE.test(reference)) errors.push('payment reference contains invalid characters');
+    else value.payment_reference = reference;
+  }
+
+  return { value, errors };
+}
+
 module.exports = {
   cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum, cleanUrl,
   validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite,
+  cleanPaymentUpdate, PAYMENT_STATUSES, PAYMENT_METHODS,
   PASSWORD_MIN, PASSWORD_MAX,
 };

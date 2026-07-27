@@ -12,7 +12,7 @@ const repo = require('../shared/membersRepo');
 const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
-const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
+const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
 const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail } = require('../shared/email');
 const { verifySvixSignature } = require('../shared/webhookAuth');
 const { handleUpload } = require('@vercel/blob/client');
@@ -418,10 +418,34 @@ app.post('/api/members/:id/reset', requireAdmin, wrap(async (req, res) => {
   res.json(repo.sanitizeMember(member));
 }));
 
-// Approves or rejects a pending bank-transfer registration's payment proof.
-// Approving unblocks the member's portal login; rejecting leaves it locked.
+// Two jobs, told apart by the body (mirrors api/members/[id]/[action].js):
+//   { decision: 'approve' | 'reject' }  — a decision on a pending bank
+//     transfer. Approving unblocks the member's portal login; both email
+//     the member.
+//   { payment_status?, payment_method?, payment_reference? } — an admin
+//     correcting the payment details by hand. No email is sent.
 app.post('/api/members/:id/payment', requireAdmin, wrap(async (req, res) => {
-  const { decision } = req.body || {};
+  const body = req.body || {};
+
+  if (body.decision === undefined) {
+    const { value, errors } = cleanPaymentUpdate(body);
+    if (errors.length > 0) return res.status(400).json({ error: errors.join(', ') });
+    if (Object.keys(value).length === 0) {
+      return res.status(400).json({ error: 'No payment fields to update' });
+    }
+    try {
+      const updated = await repo.updatePaymentDetails(db, req.params.id, value);
+      if (!updated) return res.status(404).json({ error: 'Not found' });
+      return res.json(repo.sanitizeMember(updated));
+    } catch (err) {
+      if (err instanceof repo.ConflictError) {
+        return res.status(409).json({ error: err.message, code: err.code });
+      }
+      throw err;
+    }
+  }
+
+  const { decision } = body;
   if (decision !== 'approve' && decision !== 'reject') {
     return res.status(400).json({ error: 'decision must be "approve" or "reject"' });
   }
@@ -458,7 +482,23 @@ app.post('/api/inbox/receive', wrap(async (req, res) => {
 
   const event = req.body || {};
   if (event.type === 'email.received' && event.data && event.data.email_id) {
-    const full = await getReceivedEmail(event.data.email_id);
+    // Mirrors api/inbox/[action].js: when the full message can't be
+    // fetched, store the metadata anyway (so the mail is visible in the
+    // Inbox) and let Resend retry to fill in the body.
+    let full;
+    try {
+      full = await getReceivedEmail(event.data.email_id);
+    } catch (err) {
+      console.error('POST /api/inbox/receive: could not fetch the full message:', err.message);
+      await inboxRepo.createInboundMessage(db, {
+        resendId: event.data.email_id,
+        from: event.data.from,
+        to: event.data.to,
+        subject: event.data.subject,
+        receivedAt: event.data.created_at,
+      });
+      return res.status(502).json({ error: 'Could not fetch the message body from Resend' });
+    }
     await inboxRepo.createInboundMessage(db, {
       resendId: full.id,
       from: full.from,

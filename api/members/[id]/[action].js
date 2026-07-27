@@ -4,6 +4,7 @@
 // at 12 functions).
 const { repo, getReadyDb, parseBody, requireAdmin } = require('../../_lib');
 const { sendPaymentApprovedEmail, sendPaymentRejectedEmail } = require('../../../shared/email');
+const { cleanPaymentUpdate } = require('../../../shared/validation');
 
 // Admin stopgap: clears the member's portal password (and invalidates their
 // sessions). The member re-activates via the claim flow (email + payment
@@ -14,10 +15,34 @@ async function reset(req, res, db, id) {
   return res.status(200).json(repo.sanitizeMember(member));
 }
 
-// Approves or rejects a pending bank-transfer registration's payment proof.
-// Approving unblocks the member's portal login; rejecting leaves it locked.
+// Two jobs, told apart by the body:
+//   { decision: 'approve' | 'reject' }  — the approve/reject buttons: a
+//     decision on a pending bank transfer. Approving unblocks the member's
+//     portal login; rejecting leaves it locked. Both email the member.
+//   { payment_status?, payment_method?, payment_reference? } — an admin
+//     correcting the payment details by hand. No email is sent.
 async function payment(req, res, db, id) {
-  const { decision } = parseBody(req);
+  const body = parseBody(req);
+
+  if (body.decision === undefined) {
+    const { value, errors } = cleanPaymentUpdate(body);
+    if (errors.length > 0) return res.status(400).json({ error: errors.join(', ') });
+    if (Object.keys(value).length === 0) {
+      return res.status(400).json({ error: 'No payment fields to update' });
+    }
+    try {
+      const updated = await repo.updatePaymentDetails(db, id, value);
+      if (!updated) return res.status(404).json({ error: 'Not found' });
+      return res.status(200).json(repo.sanitizeMember(updated));
+    } catch (err) {
+      if (err instanceof repo.ConflictError) {
+        return res.status(409).json({ error: err.message, code: err.code });
+      }
+      throw err;
+    }
+  }
+
+  const { decision } = body;
   if (decision !== 'approve' && decision !== 'reject') {
     return res.status(400).json({ error: 'decision must be "approve" or "reject"' });
   }
