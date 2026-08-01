@@ -4,11 +4,14 @@ import '../styles/tailwind.css';
 import Logo from '../shared/Logo';
 import { publicApi } from '../shared/api';
 import { SUPPORT_EMAIL } from '../shared/contact';
+import { useSeo, routeMeta } from '../shared/seo';
 
 const inputClass =
   'w-full bg-background border border-outline-variant rounded-lg px-4 py-3 text-body-md focus:ring-2 focus:ring-primary outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed';
 
 function ContactPage() {
+  useSeo(routeMeta('/contact'));
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');

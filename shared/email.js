@@ -6,7 +6,20 @@
 // Rules for callers:
 // - sendEmail never throws — it returns { sent, error? }. Email is always
 //   best-effort; a mail failure must never fail a paid registration.
+const { applyPlaceholders } = require('./broadcast');
+
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
+// Batch send — one request, up to 100 separately addressed emails. Used by
+// the admin broadcast so a mailing to the whole membership is a few requests
+// instead of one per member (and so no member ever sees another's address).
+const RESEND_BATCH_ENDPOINT = 'https://api.resend.com/emails/batch';
+const BATCH_SIZE = 100; // Resend's documented per-request maximum
+const BATCH_PAUSE_MS = 600; // keeps us under Resend's request-rate limit
+
+// Replies to a broadcast should reach a human, not the no-reply sender —
+// this address is routed into the admin Inbox by Resend Inbound. Mirrors
+// SUPPORT_EMAIL in src/shared/contact.js (kept in sync by hand).
+const SUPPORT_ADDRESS = 'support@zentrivacoop.com';
 
 function getConfig() {
   return {
@@ -75,15 +88,17 @@ const escapeHtml = (value) =>
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 
-function layout(title, bodyHtml) {
+const DEFAULT_FOOTER = `You received this email because of activity on your Zentriva membership.
+        If this wasn't you, please contact support.`;
+
+function layout(title, bodyHtml, footerHtml = DEFAULT_FOOTER) {
   return `
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1c1c1c;">
       <h2 style="color:#1F7A4D;margin-bottom:4px;">Zentriva Multipurpose Cooperative Society</h2>
       <h3 style="margin-top:0;">${escapeHtml(title)}</h3>
       ${bodyHtml}
       <p style="color:#777;font-size:12px;margin-top:32px;border-top:1px solid #ddd;padding-top:12px;">
-        You received this email because of activity on your Zentriva membership.
-        If this wasn't you, please contact support.
+        ${footerHtml}
       </p>
     </div>`;
 }
@@ -227,8 +242,103 @@ function sendVerificationEmail(member, token) {
   });
 }
 
+// --- Broadcast (Admin → Send Mail) ---------------------------------------------
+
+// Turns the plain-text an admin typed into the message body of an email.
+// Everything is escaped first, so the admin's text can never inject markup;
+// the small formatting vocabulary is then applied to that escaped text:
+//   blank line -> new paragraph, single newline -> <br>,
+//   **bold**, and [label](https://link)
+// http/https only — a javascript: or data: URL never becomes a link.
+function renderBroadcastHtml(text) {
+  const inline = (chunk) =>
+    escapeHtml(chunk)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(
+        /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+        '<a href="$2" style="color:#1F7A4D;">$1</a>'
+      )
+      .replace(/\n/g, '<br />');
+
+  return String(text)
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter(Boolean)
+    .map((para) => `<p style="font-size:15px;line-height:1.6;">${inline(para)}</p>`)
+    .join('\n');
+}
+
+// Sends one message to many members, personalised per recipient and
+// addressed individually (never a shared To/BCC list).
+//
+// Like sendEmail this never throws — it always returns a tally, because the
+// caller records the broadcast either way and the admin needs to be told
+// exactly how many landed. A failing chunk doesn't abort the rest: the
+// remaining members should still get their mail.
+async function sendBroadcast({ recipients, subject, body }) {
+  const { apiKey, from } = getConfig();
+  if (!apiKey || !from) {
+    return { sent: 0, failed: recipients.length, error: 'email not configured' };
+  }
+
+  const footer =
+    `You're receiving this because you're a registered member of Zentriva Multipurpose ` +
+    `Cooperative Society. Reply to this email to reach us at ${escapeHtml(SUPPORT_ADDRESS)}.`;
+  let sent = 0;
+  let failed = 0;
+  const errors = [];
+
+  for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+    const chunk = recipients.slice(i, i + BATCH_SIZE);
+    const payload = chunk.map((recipient) => {
+      const personalSubject = applyPlaceholders(subject, recipient);
+      // Placeholders are filled in BEFORE the body is rendered, so the
+      // member's own name goes through the same escaping as the rest of the
+      // text rather than being spliced into finished HTML.
+      const personalBody = applyPlaceholders(body, recipient);
+      return {
+        from,
+        to: [recipient.email],
+        reply_to: SUPPORT_ADDRESS,
+        subject: personalSubject,
+        text: personalBody,
+        html: layout(personalSubject, renderBroadcastHtml(personalBody), footer),
+      };
+    });
+
+    try {
+      const response = await fetch(RESEND_BATCH_ENDPOINT, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        sent += chunk.length;
+      } else {
+        const detail = await response.text().catch(() => '');
+        failed += chunk.length;
+        errors.push(`HTTP ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+        console.error(`Broadcast batch failed (${response.status}) for ${chunk.length} recipients: ${detail}`);
+      }
+    } catch (err) {
+      failed += chunk.length;
+      errors.push(err.message);
+      console.error(`Broadcast batch error for ${chunk.length} recipients:`, err.message);
+    }
+
+    if (i + BATCH_SIZE < recipients.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_PAUSE_MS));
+    }
+  }
+
+  // De-duplicated: 8 failed chunks with the same cause is one message worth
+  // showing the admin, not eight.
+  const error = errors.length ? [...new Set(errors)].join(' | ').slice(0, 500) : null;
+  return { sent, failed, error };
+}
+
 module.exports = {
   isEmailEnabled, sendEmail, sendRegistrationEmail, sendPasswordResetEmail,
   sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail,
-  getReceivedEmail,
+  getReceivedEmail, sendBroadcast, renderBroadcastHtml, SUPPORT_ADDRESS,
 };

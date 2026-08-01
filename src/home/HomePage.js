@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import '../styles/tailwind.css';
+import { useSeo, routeMeta } from '../shared/seo';
 import HomeNav from './HomeNav';
 import Hero from './Hero';
 import About from './About';
@@ -13,6 +14,7 @@ import HomeFooter from './HomeFooter';
 
 function HomePage() {
   const { hash } = useLocation();
+  useSeo(routeMeta('/'));
 
   // Links from other pages (e.g. the member portal's "Upgrade Tier" →
   // /#tiers) land here with a hash; scroll to that section once mounted.

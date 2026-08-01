@@ -30,6 +30,28 @@ async function ensureSchema(db) {
     'CREATE INDEX IF NOT EXISTS idx_inbound_messages_created ON inbound_messages(created_at DESC)'
   );
 
+  // Sent side: one row per admin broadcast (Admin → Send Mail). This is the
+  // record of what went out to the membership and how much of it Resend
+  // accepted — a partly-failed send is kept, not discarded, so nobody has to
+  // guess afterwards whether a mailing actually went.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS broadcasts (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      subject         TEXT NOT NULL,
+      body            TEXT NOT NULL,
+      audience        TEXT NOT NULL,
+      recipient_count INTEGER NOT NULL DEFAULT 0,
+      sent_count      INTEGER NOT NULL DEFAULT 0,
+      failed_count    INTEGER NOT NULL DEFAULT 0,
+      error           TEXT,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  await db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_broadcasts_created ON broadcasts(created_at DESC)'
+  );
+
   schemaReady = true;
 }
 
@@ -90,6 +112,40 @@ async function setInboundMessageRead(db, id, isRead) {
   });
 }
 
+// --- Outbound broadcasts -----------------------------------------------------
+
+async function createBroadcast(db, record) {
+  const result = await db.execute({
+    sql: `INSERT INTO broadcasts
+          (subject, body, audience, recipient_count, sent_count, failed_count, error)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      record.subject,
+      record.body,
+      record.audience,
+      record.recipientCount || 0,
+      record.sentCount || 0,
+      record.failedCount || 0,
+      record.error || null,
+    ],
+  });
+  const id = result.lastInsertRowid;
+  return typeof id === 'bigint' ? Number(id) : id;
+}
+
+async function listBroadcasts(db, limit = 50) {
+  const result = await db.execute({
+    sql: 'SELECT * FROM broadcasts ORDER BY created_at DESC, id DESC LIMIT ?',
+    args: [limit],
+  });
+  return result.rows.map((row) => {
+    const out = { ...row };
+    if (typeof out.id === 'bigint') out.id = Number(out.id);
+    return out;
+  });
+}
+
 module.exports = {
   ensureSchema, createInboundMessage, listInboundMessages, setInboundMessageRead,
+  createBroadcast, listBroadcasts,
 };

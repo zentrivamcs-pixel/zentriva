@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import '../styles/tailwind.css';
 import Logo from '../shared/Logo';
 import { publicApi } from '../shared/api';
+import { useSeo } from '../shared/seo';
 
 const inputClass =
   'w-full px-3 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:outline-none';
@@ -11,6 +12,9 @@ const labelClass = 'block text-label-sm text-on-surface-variant mb-1 mt-4';
 // Landing page for the password-reset email link (/member/reset?token=…).
 // Public — it sits outside the authenticated member layout.
 function ResetPasswordPage() {
+  // A one-off token link — never indexable.
+  useSeo({ title: 'Reset your password | Zentriva', noindex: true });
+
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
 

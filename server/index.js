@@ -13,8 +13,9 @@ const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
 const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
-const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail } = require('../shared/email');
+const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail, sendBroadcast } = require('../shared/email');
 const { verifySvixSignature } = require('../shared/webhookAuth');
+const { DEFAULT_AUDIENCE, MAX_RECIPIENTS, isValidAudience, selectRecipients } = require('../shared/broadcast');
 const { handleUpload } = require('@vercel/blob/client');
 
 const RESET_TTL_MS = 30 * 60 * 1000; // password-reset links live 30 minutes
@@ -522,6 +523,62 @@ app.post('/api/inbox/mark-read', requireAdmin, wrap(async (req, res) => {
   if (id === undefined) return res.status(400).json({ error: 'id is required' });
   await inboxRepo.setInboundMessageRead(db, id, read !== false);
   res.json({ ok: true });
+}));
+
+// --- Outbound broadcast (Admin -> Send Mail) ---------------------------------------
+
+// Mirrors api/inbox/[action].js. The client sends an audience KEY, never a
+// recipient list — who gets mailed is decided here, from the database.
+app.post('/api/inbox/broadcast', requireAdmin, wrap(async (req, res) => {
+  const body = req.body || {};
+  const subject = cleanString(body.subject, 200);
+  const message = cleanString(body.body, 20000);
+  const audience = isValidAudience(body.audience) ? body.audience : null;
+
+  if (!subject) return res.status(400).json({ error: 'A subject is required' });
+  if (!message) return res.status(400).json({ error: 'A message is required' });
+  if (!audience) return res.status(400).json({ error: 'Unknown audience' });
+  if (!isEmailEnabled()) {
+    return res.status(503).json({
+      error: 'Email is not configured on the server — set RESEND_API_KEY and EMAIL_FROM in .env.local.',
+    });
+  }
+
+  const recipients = selectRecipients(await repo.listMembers(db), audience);
+  if (recipients.length === 0) {
+    return res.status(400).json({ error: 'No members match that audience — nothing was sent.' });
+  }
+  if (recipients.length > MAX_RECIPIENTS) {
+    return res.status(400).json({
+      error: `That audience has ${recipients.length} members, above the ${MAX_RECIPIENTS} per-send limit. Narrow the audience.`,
+    });
+  }
+
+  const result = await sendBroadcast({ recipients, subject, body: message });
+  await inboxRepo.createBroadcast(db, {
+    subject,
+    body: message,
+    audience,
+    recipientCount: recipients.length,
+    sentCount: result.sent,
+    failedCount: result.failed,
+    error: result.error,
+  });
+
+  res.status(result.sent === 0 ? 502 : 200).json({
+    recipientCount: recipients.length,
+    sent: result.sent,
+    failed: result.failed,
+    error: result.error,
+  });
+}));
+
+app.get('/api/inbox/broadcasts', requireAdmin, wrap(async (req, res) => {
+  res.json({
+    emailEnabled: isEmailEnabled(),
+    defaultAudience: DEFAULT_AUDIENCE,
+    broadcasts: await inboxRepo.listBroadcasts(db),
+  });
 }));
 
 // --- Public contact form ----------------------------------------------------------

@@ -1,0 +1,67 @@
+{
+  "_comment": "Single source of truth for page metadata. JSON on purpose: the React app imports it (src/shared/seo.js) AND the post-build script reads it with require() (scripts/build-seo.js), so the tags crawlers see in the raw HTML and the tags the SPA sets on client-side navigation can never drift apart. Titles are kept under ~60 characters and descriptions 140-160 so Google shows them whole.",
+
+  "siteUrl": "https://zentrivacoop.com",
+  "siteName": "Zentriva Multipurpose Cooperative Society",
+  "legalName": "Zentriva Multipurpose Cooperative Society Limited",
+  "shortName": "Zentriva",
+  "supportEmail": "support@zentrivacoop.com",
+  "logoPath": "/logo512.png",
+  "ogImagePath": "/og-image.png",
+  "locale": "en_NG",
+  "twitterCard": "summary_large_image",
+
+  "defaultDescription": "A member-driven multipurpose cooperative in Nigeria offering practical skills training, mentorship, and pooled resources for young people and professionals.",
+
+  "routes": [
+    {
+      "path": "/",
+      "file": "index.html",
+      "title": "Zentriva Multipurpose Cooperative Society | Skills Training",
+      "description": "A member-driven multipurpose cooperative in Nigeria offering practical skills training, mentorship, and pooled resources for young people and professionals.",
+      "keywords": "multipurpose cooperative society Nigeria, skills training Nigeria, cooperative membership, mentorship programs, youth empowerment Nigeria, Zentriva",
+      "schema": ["organization", "website"],
+      "changefreq": "weekly",
+      "priority": "1.0"
+    },
+    {
+      "path": "/register",
+      "file": "register.html",
+      "title": "Join Zentriva | Membership Registration",
+      "description": "Register for Zentriva Multipurpose Cooperative Society. One flat registration fee covers training programs, the member network, and support for member ventures.",
+      "keywords": "join cooperative society Nigeria, cooperative membership registration, Zentriva membership",
+      "schema": ["organization"],
+      "changefreq": "monthly",
+      "priority": "0.9"
+    },
+    {
+      "path": "/contact",
+      "file": "contact.html",
+      "title": "Contact Zentriva Cooperative Society",
+      "description": "Questions about membership, training programs, or your member account? Send the Zentriva Multipurpose Cooperative Society team a message and we will reply by email.",
+      "keywords": "contact Zentriva, cooperative society support Nigeria",
+      "schema": ["organization"],
+      "changefreq": "yearly",
+      "priority": "0.6"
+    },
+    {
+      "path": "/privacy",
+      "file": "privacy.html",
+      "title": "Privacy Policy | Zentriva Cooperative",
+      "description": "How Zentriva Multipurpose Cooperative Society collects, uses, stores, and protects the personal information of members and visitors to this website.",
+      "changefreq": "yearly",
+      "priority": "0.3"
+    },
+    {
+      "path": "/terms",
+      "file": "terms.html",
+      "title": "Terms of Service | Zentriva Cooperative",
+      "description": "The terms governing membership of Zentriva Multipurpose Cooperative Society, use of the member portal, registration payments, and member conduct.",
+      "changefreq": "yearly",
+      "priority": "0.3"
+    }
+  ],
+
+  "_noindexComment": "Prefixes that must never be indexed: private areas and one-off token links. Mirrored into robots.txt Disallow rules and into a runtime robots meta tag by src/shared/seo.js.",
+  "noindexPrefixes": ["/admin", "/member"]
+}

@@ -83,6 +83,74 @@ Two separate things land in Admin → Inbox:
   A rejected delivery is logged by the function (`signature rejected`, with the
   headers it did/didn't see) — check the Vercel function logs if mail isn't arriving.
 
+### Mailing members from the dashboard (Admin → Send Mail)
+
+`/admin/broadcast` sends one message to every member in a chosen audience (all,
+paid, pending review, verified/unverified email) from the `EMAIL_FROM` no-reply
+address, with `Reply-To` set to the support address so replies land back in the
+admin Inbox. It needs **`RESEND_API_KEY` + `EMAIL_FROM`** and nothing else — the
+page shows a warning banner and refuses to send while they're missing.
+
+- Each member is addressed individually (Resend's batch API, 100 per request) —
+  no member ever sees another member's address.
+- `{{first_name}}`, `{{name}}` and `{{membership_id}}` are substituted per copy;
+  `**bold**` and `[label](https://…)` are formatted, everything else is escaped.
+- Every send is recorded in the `broadcasts` table (created automatically) and
+  listed on the page with its delivered/failed counts.
+- A single send is capped at 1,000 recipients so it finishes inside the
+  function's time budget.
+- Recipients are re-selected server-side from the database on every send; the
+  browser only sends an audience key.
+
+---
+
+## 4b. SEO — how it works and what only you can do
+
+`npm run build` runs [scripts/build-seo.js](scripts/build-seo.js) after the CRA
+build. All page copy lives in **[src/shared/seo.json](src/shared/seo.json)** — edit
+titles and descriptions there, nowhere else. The script then:
+
+- writes a **static HTML file per public route** (`register.html`, `contact.html`,
+  `privacy.html`, `terms.html`) with that page's own `<title>`, description,
+  canonical, Open Graph tags and JSON-LD, and [vercel.json](vercel.json) rewrites
+  `/register` → `/register.html` etc. Each file boots the same bundle, so the app
+  is unchanged — but a crawler now reads real per-page metadata before any
+  JavaScript runs, instead of one shared shell for the whole site;
+- generates **sitemap.xml** and **robots.txt** (which disallows `/admin` and
+  `/member` and points at the sitemap).
+
+`src/shared/seo.js` applies the same metadata during client-side navigation and
+is what puts `noindex` on the admin, member portal, 404, and token-link pages.
+
+The canonical origin defaults to `https://zentrivacoop.com`. If the live domain
+is ever different, set **`SITE_URL`** in Vercel (or change `siteUrl` in
+`seo.json`) — canonicals, the sitemap, and JSON-LD all follow it.
+
+**Manual steps (nobody can do these from the codebase):**
+
+1. **Google Search Console** — add the property at
+   https://search.google.com/search-console, verify via the DNS TXT record (works
+   for both `zentrivacoop.com` and `www`), then **Sitemaps → submit**
+   `https://zentrivacoop.com/sitemap.xml`. Use **URL Inspection → Request
+   indexing** on `/` and `/register` to skip the queue.
+2. **Pick one hostname.** Serving the site on both `zentrivacoop.com` and
+   `www.zentrivacoop.com` (or a `*.vercel.app` domain) splits your ranking. In
+   Vercel → Domains, mark one as primary and let the others 308-redirect to it.
+   Canonical tags already point at `siteUrl`, but a redirect is stronger.
+3. **Google Business Profile** — for a Nigerian cooperative this is usually the
+   single biggest win for "cooperative society near me" style searches. It needs
+   a real address and phone number, which is also what's missing from the
+   `Organization` JSON-LD: once you have them, add `address` and `telephone` in
+   `scripts/build-seo.js` and consider switching the type to `LocalBusiness`.
+4. **Backlinks and citations** — links from the cooperative's registration body,
+   partner organisations, and local directories move rankings more than anything
+   on-page at this stage.
+
+Deliberately **not** faked: address, phone, founding date, social profiles, and
+`Event`/`FAQ` structured data. Structured data that contradicts reality (or
+describes events with no real venue or date) risks a Google manual action. Add
+each one as it becomes true.
+
 ---
 
 ## 5. Deploy

@@ -4,6 +4,7 @@ import { publicApi } from './shared/api';
 import { isValidPhone } from './shared/phoneValidation';
 import { uploadImage } from './shared/uploadFile';
 import { PAYSTACK_ENABLED, BANK_TRANSFER_DETAILS } from './shared/paymentConfig';
+import { useSeo, routeMeta } from './shared/seo';
 
 const generateBankReference = () =>
   `BT-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
@@ -99,6 +100,8 @@ const initialFormData = {
 };
 
 function FormPage() {
+  useSeo(routeMeta('/register'));
+
   // Flat registration fee — every new signup is the 'standard' tier
   // (already priced at ₦5,000), so there's no tier choice on the form.
   const tier = getTier('standard');

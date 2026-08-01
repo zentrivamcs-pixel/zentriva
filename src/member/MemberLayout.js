@@ -8,6 +8,7 @@ import MemberFooter from './MemberFooter';
 import MemberLogin from './MemberLogin';
 import { ProfileProvider } from './ProfileContext';
 import { MemberAuthProvider, useMemberAuth } from './MemberAuthContext';
+import { useSeo } from '../shared/seo';
 
 function MemberLayoutInner() {
   const { member, view, loading, logout } = useMemberAuth();
@@ -50,6 +51,9 @@ function MemberLayoutInner() {
 }
 
 function MemberLayout() {
+  // Member-only pages must never be indexed — see vercel.json's X-Robots-Tag.
+  useSeo({ title: 'Member Portal | Zentriva', noindex: true });
+
   return (
     <MemberAuthProvider>
       <ProfileProvider>

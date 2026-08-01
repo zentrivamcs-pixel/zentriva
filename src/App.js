@@ -12,6 +12,7 @@ const AdminGate = lazy(() => import('./admin/AdminGate'));
 const AdminOverview = lazy(() => import('./admin/AdminOverview'));
 const AdminMembers = lazy(() => import('./admin/AdminMembers'));
 const AdminInbox = lazy(() => import('./admin/AdminInbox'));
+const AdminBroadcast = lazy(() => import('./admin/AdminBroadcast'));
 const AdminFinances = lazy(() => import('./admin/AdminFinances'));
 const AdminTransactions = lazy(() => import('./admin/AdminTransactions'));
 const AdminSettings = lazy(() => import('./admin/AdminSettings'));
@@ -29,6 +30,7 @@ const TermsOfService = lazy(() => import('./legal/TermsOfService'));
 const ContactPage = lazy(() => import('./contact/ContactPage'));
 const ResetPasswordPage = lazy(() => import('./member/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('./member/VerifyEmailPage'));
+const NotFound = lazy(() => import('./NotFound'));
 
 function RouteFallback() {
   return (
@@ -92,6 +94,7 @@ function App() {
             <Route index element={<AdminOverview />} />
             <Route path="members" element={<AdminMembers />} />
             <Route path="inbox" element={<AdminInbox />} />
+            <Route path="broadcast" element={<AdminBroadcast />} />
             <Route path="finances" element={<AdminFinances />} />
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="settings" element={<AdminSettings />} />
@@ -108,7 +111,10 @@ function App() {
             <Route path="benefits" element={<ComingSoon title="Benefits" icon="star" />} />
           </Route>
 
-          <Route path="*" element={<HomePage />} />
+          {/* Unknown URLs get a real "not found" page carrying a noindex —
+              rendering the homepage here made every bad link a duplicate
+              copy of "/" in Google's index. */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </div>

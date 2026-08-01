@@ -3,8 +3,13 @@ import '../styles/tailwind.css';
 import AdminLayout from './AdminLayout';
 import Logo from '../shared/Logo';
 import { getAdminToken, setAdminToken, clearAdminToken, publicApi } from '../shared/api';
+import { useSeo } from '../shared/seo';
 
 function AdminGate() {
+  // Private area: keep it out of Google entirely (the X-Robots-Tag header in
+  // vercel.json says the same thing at the edge).
+  useSeo({ title: 'Admin Dashboard | Zentriva', noindex: true });
+
   const [authed, setAuthed] = useState(() => !!getAdminToken());
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

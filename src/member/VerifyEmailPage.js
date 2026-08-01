@@ -3,12 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom';
 import '../styles/tailwind.css';
 import Logo from '../shared/Logo';
 import { publicApi } from '../shared/api';
+import { useSeo } from '../shared/seo';
 
 // Landing page for the verification email link (/member/verify?token=…).
 // Public — it sits outside the authenticated member layout, so (like
 // ResetPasswordPage) it calls the API directly rather than via
 // MemberAuthContext, which only exists inside MemberLayout.
 function VerifyEmailPage() {
+  // A one-off token link — never indexable.
+  useSeo({ title: 'Verify your email | Zentriva', noindex: true });
+
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
 

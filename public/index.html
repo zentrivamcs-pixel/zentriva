@@ -5,22 +5,37 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#131b2e" />
+    <!-- This file is the TEMPLATE for every page. After the build,
+         scripts/build-seo.js rewrites the title, description, canonical, and
+         og:/twitter: values below into one static file per public route
+         (build/register.html, build/contact.html, …) so each URL a crawler
+         fetches carries its own metadata instead of the SPA's shared shell.
+         Change copy in src/shared/seo.json, not here. -->
     <meta
       name="description"
-      content="Zentriva Multipurpose Cooperative Society — skills training, mentorship, and community-based economic empowerment for young people and professionals in Nigeria."
+      content="A member-driven multipurpose cooperative in Nigeria offering practical skills training, mentorship, and pooled resources for young people and professionals."
     />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Zentriva Multipurpose Cooperative Society" />
+    <link rel="canonical" href="https://zentrivacoop.com/" />
     <!-- Social sharing (Open Graph / Twitter) — og-image.png is the logo
-         centered on a 1200x630 canvas, the standard link-preview ratio. -->
+         centered on a 1200x630 canvas, the standard link-preview ratio.
+         These URLs must be ABSOLUTE: Facebook, WhatsApp, LinkedIn and X all
+         drop a relative og:image, which is why previews showed no picture. -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Zentriva Multipurpose Cooperative Society" />
+    <meta property="og:site_name" content="Zentriva Multipurpose Cooperative Society" />
+    <meta property="og:locale" content="en_NG" />
+    <meta property="og:url" content="https://zentrivacoop.com/" />
+    <meta property="og:title" content="Zentriva Multipurpose Cooperative Society | Skills Training" />
     <meta property="og:description" content="Skilled. Empowered. Rooted in Purpose. Join a member-driven cooperative offering training, mentorship, and real economic opportunity." />
-    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:image" content="https://zentrivacoop.com/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Zentriva Multipurpose Cooperative Society" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Zentriva Multipurpose Cooperative Society" />
+    <meta name="twitter:title" content="Zentriva Multipurpose Cooperative Society | Skills Training" />
     <meta name="twitter:description" content="Skilled. Empowered. Rooted in Purpose. Join a member-driven cooperative offering training, mentorship, and real economic opportunity." />
-    <meta name="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta name="twitter:image" content="https://zentrivacoop.com/og-image.png" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/logo192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="%PUBLIC_URL%/logo512.png" />
@@ -29,6 +44,10 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- The homepage's largest paint is the hero, whose backdrop is a CSS
+         background — the browser can't discover it until the stylesheet is
+         parsed. Preloading it pulls the LCP in, which is a ranking signal. -->
+    <link rel="preload" as="image" href="%PUBLIC_URL%/images/hero-bg.jpg" fetchpriority="high" />
     <!-- Fonts used by the member portal (src/member) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -52,10 +71,28 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>ZENTRIVA</title>
+    <title>Zentriva Multipurpose Cooperative Society | Skills Training</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <!-- Crawlers that don't execute JavaScript (and visitors with it off)
+         get a short, accurate summary of the same content the app renders —
+         a heading, what the cooperative is, and real links. -->
+    <noscript>
+      <h1>Zentriva Multipurpose Cooperative Society</h1>
+      <p>
+        Zentriva Multipurpose Cooperative Society Limited is a member-driven cooperative in
+        Nigeria dedicated to skills training, mentorship, and empowerment. We equip young
+        people and aspiring professionals with practical, market-relevant skills in business,
+        technology, and creative fields, and pool resources to support member ventures.
+      </p>
+      <p>
+        <a href="/register">Join Zentriva</a> ·
+        <a href="/contact">Contact us</a> ·
+        <a href="/privacy">Privacy Policy</a> ·
+        <a href="/terms">Terms of Service</a>
+      </p>
+      <p>This site needs JavaScript enabled for membership registration and the member portal.</p>
+    </noscript>
     <div id="root"></div>
     <!--
       This HTML file is a template.

@@ -1,5 +1,6 @@
 import React from 'react';
 import LegalPage from './LegalPage';
+import { useSeo, routeMeta } from '../shared/seo';
 
 const H = ({ children }) => (
   <h2 className="font-headline-md text-headline-md text-primary mt-10 mb-3">{children}</h2>
@@ -14,6 +15,8 @@ const LI = ({ children }) => (
 );
 
 function TermsOfService() {
+  useSeo(routeMeta('/terms'));
+
   return (
     <LegalPage title="Terms of Service" updated="July 17, 2026">
       <P>
