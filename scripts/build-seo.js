@@ -14,6 +14,12 @@
 //
 // It also emits sitemap.xml and robots.txt from the same seo.json, so the
 // list of indexable URLs is never maintained in three places.
+//
+// Adding a route here means adding a matching rewrite to vercel.json ABOVE
+// its SPA catch-all, or the new file is never served. Note that vercel.json
+// cannot carry comments explaining that: Vercel validates it with
+// additionalProperties:false, so a "//" key inside a rewrite entry fails the
+// whole deployment. The reasoning lives in DEPLOY.md instead.
 const fs = require('fs');
 const path = require('path');
 

@@ -4,23 +4,14 @@
   "outputDirectory": "build",
   "trailingSlash": false,
   "rewrites": [
-    {
-      "//": "Each public route is served its own pre-rendered HTML (written by scripts/build-seo.js) so a crawler reads that page's real title, description, canonical and JSON-LD instead of the SPA's shared shell. Every one of these files still boots the same bundle, so navigation is unchanged. They MUST come before the catch-all below, which would otherwise swallow them.",
-      "source": "/register",
-      "destination": "/register.html"
-    },
+    { "source": "/register", "destination": "/register.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
-    {
-      "//": "Everything else that isn't an API call is client-side routing.",
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "//": "Private areas are behind auth already, but this keeps them out of the index even if a URL leaks into a link somewhere. Belt and braces with the runtime noindex tag in src/shared/seo.js.",
       "source": "/(admin|member)(/.*)?",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     }
