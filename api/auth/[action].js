@@ -3,7 +3,7 @@
 // Consolidated into one dynamic route so these actions share a single
 // Vercel serverless function instead of eight (Hobby plan caps a
 // deployment at 12 functions).
-const { repo, getReadyDb, parseBody, auth } = require('../_lib');
+const { repo, getReadyDb, parseBody, sendServerError, auth } = require('../_lib');
 const { isEmailEnabled, sendPasswordResetEmail, sendVerificationEmail } = require('../../shared/email');
 const { cleanEmail, passwordError } = require('../../shared/validation');
 
@@ -212,7 +212,6 @@ module.exports = async (req, res) => {
     const db = await getReadyDb();
     return await handler(req, res, db);
   } catch (err) {
-    console.error(`POST /api/auth/${req.query.action} error:`, err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, `POST /api/auth/${req.query.action}`);
   }
 };

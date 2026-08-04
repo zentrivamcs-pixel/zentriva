@@ -50,7 +50,13 @@ function AdminLayout({ onLogout }) {
       setMembers(data || []);
     } catch (error) {
       console.error('Error loading members:', error);
-      if (!handleAuthError(error)) alert('Error loading data from database');
+      // The server's own message is shown rather than a fixed string: a 503
+      // from an unreachable database and a genuine bug read identically as
+      // "Error loading data from database", which is how a Turso outage got
+      // mistaken for an application fault.
+      if (!handleAuthError(error)) {
+        alert(error.message || 'Error loading data from database');
+      }
     } finally {
       setLoading(false);
     }

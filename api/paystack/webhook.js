@@ -4,7 +4,7 @@
 // source of truth even if a user closes the tab between paying and the
 // client-side save completing.
 const crypto = require('crypto');
-const { repo, getReadyDb, readRawBody } = require('../_lib');
+const { repo, getReadyDb, readRawBody, sendServerError } = require('../_lib');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -41,8 +41,9 @@ module.exports = async (req, res) => {
     // Always 200 so Paystack doesn't retry events we've already handled.
     return res.status(200).json({ received: true });
   } catch (err) {
-    console.error('POST /api/paystack/webhook error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    // Non-2xx asks Paystack to retry, which is what we want when the database
+    // was unreachable — the charge is real and must not be dropped.
+    return sendServerError(res, err, 'POST /api/paystack/webhook');
   }
 };
 

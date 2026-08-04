@@ -9,7 +9,7 @@
 // action segment) stays in its own file: Vercel's non-Next.js /api routing
 // doesn't support an "optional" catch-all, only single dynamic segments and
 // required catch-alls, so a bare /api/me can't be matched from here.
-const { repo, getReadyDb, parseBody, requireMemberRecord, auth } = require('../_lib');
+const { repo, getReadyDb, parseBody, requireMemberRecord, sendServerError, auth } = require('../_lib');
 const { passwordError } = require('../../shared/validation');
 const inbox = require('../../shared/inboxRepo');
 
@@ -102,7 +102,6 @@ module.exports = async (req, res) => {
 
     return await handler(req, res, db, member);
   } catch (err) {
-    console.error(`/api/me/${req.query.action} error:`, err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, `/api/me/${req.query.action}`);
   }
 };

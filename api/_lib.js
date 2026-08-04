@@ -3,7 +3,7 @@
 // shared/membersRepo.js (one schema + one set of queries for every runtime);
 // this module adds the HTTP-side concerns: auth guards, body parsing, and
 // Paystack verification.
-const { getDb } = require('../shared/db');
+const { getDb, isDatabaseUnavailable } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
@@ -103,7 +103,30 @@ async function requireMemberRecord(req, res, db) {
   return member;
 }
 
+// The single failure response for every route's catch block. A database that
+// cannot be reached is a 503, not a 500: it is not the caller's request that
+// is wrong, the response is worth retrying, and the message says so instead of
+// the bare "Server error" that sent an entire outage investigation into the
+// application code. Anything else stays a 500 with a generic message, since
+// unexpected exceptions can carry internal detail that should not go out.
+//
+// `context` is the route label used for the server-side log only.
+function sendServerError(res, err, context) {
+  if (isDatabaseUnavailable(err)) {
+    // Logged at error level with the real reason — this is the line that tells
+    // an operator whether to look at Turso or at the deployment's env vars.
+    console.error(`${context}: database unavailable —`, err.message);
+    res.setHeader('Retry-After', '30');
+    return res.status(503).json({
+      error: 'The database is temporarily unavailable. Please try again in a moment.',
+      code: 'DB_UNAVAILABLE',
+    });
+  }
+  console.error(`${context} error:`, err);
+  return res.status(500).json({ error: 'Server error' });
+}
+
 module.exports = {
   repo, getReadyDb, parseBody, readRawBody, verifyPaystackPayment,
-  requireAdmin, requireMemberRecord, auth,
+  requireAdmin, requireMemberRecord, sendServerError, auth,
 };

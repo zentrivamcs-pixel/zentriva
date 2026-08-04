@@ -1,5 +1,5 @@
 // /api/members/:id  — PUT (update), DELETE (remove). Admin only.
-const { repo, getReadyDb, parseBody, requireAdmin } = require('../../_lib');
+const { repo, getReadyDb, parseBody, requireAdmin, sendServerError } = require('../../_lib');
 const { cleanAdminWrite } = require('../../../shared/validation');
 
 module.exports = async (req, res) => {
@@ -33,7 +33,6 @@ module.exports = async (req, res) => {
     res.setHeader('Allow', 'PUT, DELETE');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('PUT/DELETE /api/members/:id error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, 'PUT/DELETE /api/members/:id');
   }
 };

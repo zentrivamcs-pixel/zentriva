@@ -1,5 +1,5 @@
 // /api/me — GET (the logged-in member's own record), PUT (update own profile).
-const { repo, getReadyDb, parseBody, requireMemberRecord } = require('../_lib');
+const { repo, getReadyDb, parseBody, requireMemberRecord, sendServerError } = require('../_lib');
 const { cleanProfileUpdate } = require('../../shared/validation');
 
 module.exports = async (req, res) => {
@@ -28,7 +28,6 @@ module.exports = async (req, res) => {
     res.setHeader('Allow', 'GET, PUT');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error('GET/PUT /api/me error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, 'GET/PUT /api/me');
   }
 };

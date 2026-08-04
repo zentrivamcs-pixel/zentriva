@@ -7,7 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const { getDb } = require('../shared/db');
+const { getDb, isDatabaseUnavailable } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
@@ -661,11 +661,21 @@ app.post('/api/paystack/webhook', wrap(async (req, res) => {
   res.json({ received: true });
 }));
 
-// Last-resort error handler for anything wrap() caught.
+// Last-resort error handler for anything wrap() caught. Mirrors
+// sendServerError in api/_lib.js so dev and production classify failures the
+// same way — an unreachable database is a 503, not a 500.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (isDatabaseUnavailable(err)) {
+    console.error(`${req.method} ${req.path}: database unavailable —`, err.message);
+    res.setHeader('Retry-After', '30');
+    return res.status(503).json({
+      error: 'The database is temporarily unavailable. Please try again in a moment.',
+      code: 'DB_UNAVAILABLE',
+    });
+  }
   console.error(`${req.method} ${req.path} failed:`, err);
-  res.status(500).json({ error: 'Server error' });
+  return res.status(500).json({ error: 'Server error' });
 });
 
 app.listen(PORT, () => {

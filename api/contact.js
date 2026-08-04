@@ -2,7 +2,7 @@
 // required). Stored as a row in the same inbound_messages table the Resend
 // inbox webhook writes to, so it shows up in the existing Admin Inbox.
 const { getDb } = require('../shared/db');
-const { parseBody } = require('./_lib');
+const { parseBody, sendServerError } = require('./_lib');
 const inbox = require('../shared/inboxRepo');
 const { cleanString, cleanEmail } = require('../shared/validation');
 
@@ -39,7 +39,6 @@ module.exports = async (req, res) => {
 
     return res.status(201).json({ ok: true });
   } catch (err) {
-    console.error('POST /api/contact error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, 'POST /api/contact');
   }
 };

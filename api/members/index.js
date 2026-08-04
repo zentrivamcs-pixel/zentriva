@@ -1,5 +1,5 @@
 // /api/members  — GET (list all, admin only), POST (create, payment-gated)
-const { repo, getReadyDb, parseBody, verifyPaystackPayment, requireAdmin, auth } = require('../_lib');
+const { repo, getReadyDb, parseBody, verifyPaystackPayment, requireAdmin, sendServerError, auth } = require('../_lib');
 const { validateRegistration, passwordError, cleanUrl } = require('../../shared/validation');
 const { getTier } = require('../../shared/membershipTiers');
 const { sendRegistrationEmail, sendVerificationEmail } = require('../../shared/email');
@@ -94,7 +94,6 @@ module.exports = async (req, res) => {
     if (err instanceof repo.ConflictError) {
       return res.status(409).json({ error: err.message, code: err.code });
     }
-    console.error('GET/POST /api/members error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, 'GET/POST /api/members');
   }
 };

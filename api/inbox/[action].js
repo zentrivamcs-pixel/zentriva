@@ -8,7 +8,7 @@
 // Consolidated into one dynamic route so these actions share a single Vercel
 // serverless function instead of one each (Hobby plan caps a deployment at
 // 12 functions — see api/auth/[action].js and api/members/[id]/[action].js).
-const { requireAdmin, readRawBody, getReadyDb, repo } = require('../_lib');
+const { requireAdmin, readRawBody, getReadyDb, sendServerError, repo } = require('../_lib');
 const { getDb } = require('../../shared/db');
 const inbox = require('../../shared/inboxRepo');
 const { getReceivedEmail, isEmailEnabled, sendBroadcast } = require('../../shared/email');
@@ -224,8 +224,7 @@ module.exports = async (req, res) => {
 
     return res.status(404).json({ error: 'Not found' });
   } catch (err) {
-    console.error(`/api/inbox/${action} error:`, err);
-    return res.status(500).json({ error: 'Server error' });
+    return sendServerError(res, err, `/api/inbox/${action}`);
   }
 };
 
