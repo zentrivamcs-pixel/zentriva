@@ -71,6 +71,7 @@ const UNAVAILABLE_MESSAGE = /ConnectionFailed|connect to upstream|Server returne
 
 function isDatabaseUnavailable(err) {
   if (!err) return false;
+  if (isDatabaseAuthRejected(err)) return false;
   if (UNAVAILABLE_CODES.has(err.code)) {
     // SERVER_ERROR covers every non-2xx from Turso; only 5xx is an outage.
     if (err.code === 'SERVER_ERROR') return /HTTP status 5\d\d/.test(String(err.message));
@@ -79,4 +80,18 @@ function isDatabaseUnavailable(err) {
   return UNAVAILABLE_MESSAGE.test(String(err.message || ''));
 }
 
-module.exports = { getDb, isDatabaseUnavailable, DatabaseConfigError };
+// Turso answering 401/403 means it is reachable but rejected the credential —
+// a wrong, expired, or wrong-database TURSO_AUTH_TOKEN. Worth separating from
+// every other failure because it looks identical from outside (a bare 500) and
+// will never clear on its own, so it is the one case where waiting is exactly
+// the wrong response. Callers log it explicitly; see sendServerError.
+function isDatabaseAuthRejected(err) {
+  if (!err || err.code !== 'SERVER_ERROR') return false;
+  const status = err.cause && err.cause.status;
+  if (status === 401 || status === 403) return true;
+  return /HTTP status 40[13]/.test(String(err.message || ''));
+}
+
+module.exports = {
+  getDb, isDatabaseUnavailable, isDatabaseAuthRejected, DatabaseConfigError,
+};

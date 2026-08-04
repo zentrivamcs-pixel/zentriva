@@ -3,7 +3,7 @@
 // shared/membersRepo.js (one schema + one set of queries for every runtime);
 // this module adds the HTTP-side concerns: auth guards, body parsing, and
 // Paystack verification.
-const { getDb, isDatabaseUnavailable } = require('../shared/db');
+const { getDb, isDatabaseUnavailable, isDatabaseAuthRejected } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
@@ -112,6 +112,22 @@ async function requireMemberRecord(req, res, db) {
 //
 // `context` is the route label used for the server-side log only.
 function sendServerError(res, err, context) {
+  // Deliberately NOT surfaced in the response body: these routes answer
+  // unauthenticated callers, and "the database credential is wrong" is not
+  // something to advertise. The log is the operator's channel, so it says
+  // plainly what to change instead of leaving a bare stack trace to decode.
+  if (isDatabaseAuthRejected(err)) {
+    console.error(
+      `${context}: DATABASE CREDENTIALS REJECTED [DB_AUTH_REJECTED] — Turso is reachable `
+      + 'but refused the token. TURSO_AUTH_TOKEN is wrong, expired, or was issued for a '
+      + 'different database. Replace it in the deployment environment and REDEPLOY — env '
+      + 'changes do not reach an already-built deployment. This is not a transient outage '
+      + 'and will not clear on its own.',
+      err.message
+    );
+    return res.status(500).json({ error: 'Server error' });
+  }
+
   if (isDatabaseUnavailable(err)) {
     // Logged at error level with the real reason — this is the line that tells
     // an operator whether to look at Turso or at the deployment's env vars.

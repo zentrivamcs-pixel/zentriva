@@ -7,7 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const { getDb, isDatabaseUnavailable } = require('../shared/db');
+const { getDb, isDatabaseUnavailable, isDatabaseAuthRejected } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const inboxRepo = require('../shared/inboxRepo');
 const { getTier } = require('../shared/membershipTiers');
@@ -666,6 +666,14 @@ app.post('/api/paystack/webhook', wrap(async (req, res) => {
 // same way — an unreachable database is a 503, not a 500.
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (isDatabaseAuthRejected(err)) {
+    console.error(
+      `${req.method} ${req.path}: DATABASE CREDENTIALS REJECTED [DB_AUTH_REJECTED] — check `
+      + 'TURSO_AUTH_TOKEN. Not a transient outage; it will not clear on its own.',
+      err.message
+    );
+    return res.status(500).json({ error: 'Server error' });
+  }
   if (isDatabaseUnavailable(err)) {
     console.error(`${req.method} ${req.path}: database unavailable —`, err.message);
     res.setHeader('Retry-After', '30');
