@@ -217,13 +217,93 @@
   flex-shrink: 0;
 }
 
-/* ===== FORMS GRID ===== */
+/* ===== FORMS GRID =====
+   Two columns is now only the fallback shape; the registration form itself is
+   a single full-width panel (.is-panel), so the grid mainly exists to keep the
+   Review & Pay and success panels laid out the way they always were. */
 .register-page .forms-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   margin-top: 0.5rem;
   align-items: start;
+}
+
+/* ===== ONE-TIME FEE BANNER ===== */
+.register-page .fee-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: rgba(26, 122, 138, 0.09);
+  border: 1px solid rgba(26, 122, 138, 0.22);
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.4rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #14545f;
+}
+
+.register-page .fee-banner .icon {
+  color: #1a7a8a;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ===== FORM SECTIONS =====
+   The three stages of one submission: your details, membership, and the
+   optional training add-on. Separated by a rule rather than by separate cards,
+   so the page reads as a single form instead of competing choices. */
+.register-page .form-section {
+  padding-top: 1.3rem;
+  margin-top: 1.3rem;
+  border-top: 1px solid rgba(26, 122, 138, 0.16);
+}
+
+.register-page .form-section:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.register-page .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0a3340;
+  margin: 0 0 1rem;
+  letter-spacing: -0.2px;
+}
+
+.register-page .section-title .icon {
+  color: #1e7e8f;
+  font-size: 1.15rem;
+}
+
+.register-page .section-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #1f5f6e;
+  background: rgba(26, 122, 138, 0.12);
+  border-radius: 40px;
+  padding: 0.15rem 0.6rem;
+}
+
+/* Two fields per row on desktop; the grid collapses on narrow screens with
+   the rest of the layout (see the 768px block at the end of this file). */
+.register-page .field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.2rem;
+}
+
+.register-page .field-grid > .full-span {
+  grid-column: 1 / -1;
 }
 
 .register-page .form-module {
@@ -598,6 +678,24 @@
   color: #0a3340;
 }
 
+.register-page .summary-fee small {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.register-page .summary-training {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #1f5f6e;
+}
+
+.register-page .summary-training .icon {
+  font-size: 1rem;
+  color: #1e7e8f;
+}
+
 .register-page .pay-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -888,6 +986,7 @@
   .register-page { padding: 1rem 0.8rem 2rem; }
   .register-page .coop-card { padding: 1.2rem 1rem; }
   .register-page .forms-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .register-page .field-grid { grid-template-columns: 1fr; column-gap: 0; }
   .register-page .form-module { padding: 1.2rem 1.2rem 1.5rem; }
   .register-page .logo-header { gap: 0.8rem; margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
   .register-page .logo-header img { height: 45px; width: 45px; }

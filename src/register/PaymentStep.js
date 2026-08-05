@@ -28,9 +28,17 @@ function PaymentStep({
       <div className="summary-box">
         <strong>{summary.fullName}</strong><br />
         {summary.email} · {summary.phoneNumber}
+        {summary.wantsTraining && summary.skill && (
+          <>
+            <br />
+            <span className="summary-training">
+              <Icon name="school" /> Training requested: {summary.skill}
+            </span>
+          </>
+        )}
         <div className="summary-fee">
-          <span>Registration fee</span>
-          <span>₦{feeNaira.toLocaleString()} / year</span>
+          <span>Registration fee <small>(one-time)</small></span>
+          <span>₦{feeNaira.toLocaleString()}</span>
         </div>
       </div>
 

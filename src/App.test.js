@@ -27,14 +27,31 @@ test('renders the homepage hero', async () => {
 });
 
 // The longer timeout is for the lazy chunk: this route pulls in the whole
-// registration bundle (both modules, the payment step, phone validation), and
-// on a cold Jest module registry that regularly takes over the 1s default.
-test('renders the registration page with both modules', async () => {
+// registration bundle (the form, the payment step, phone validation), and on a
+// cold Jest module registry that regularly takes over the 1s default.
+//
+// Membership and skill training used to be two separate modules, each asking
+// for the same name/gender/phone/email. They are now one form: the details are
+// collected once and training is an optional section of the same submission.
+test('renders the registration page as one form covering both paths', async () => {
   renderAt('/register');
   expect(
-    await screen.findByRole('heading', { name: /become a member/i }, { timeout: 5000 })
+    await screen.findByRole('heading', { name: /join zentriva/i }, { timeout: 5000 })
   ).toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: /learn a skill/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /your details/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /membership/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /skill training/i })).toBeInTheDocument();
+}, 10000);
+
+// The fee is a one-time registration charge covering membership and training
+// alike. It read "/year" on the form and in the payment summary, which is a
+// different promise to the member and a different number on the invoice.
+test('the registration fee is presented as one-time, not annual', async () => {
+  renderAt('/register');
+  expect(
+    await screen.findByText(/one-time registration fee/i, {}, { timeout: 5000 })
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/₦5,000\s*\/\s*year/i)).not.toBeInTheDocument();
 }, 10000);
 
 // The long directory questionnaire was the registration page before the short

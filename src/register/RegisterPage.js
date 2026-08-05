@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import MembershipForm from './MembershipForm';
-import SkillForm from './SkillForm';
+import RegistrationForm from './RegistrationForm';
 import PaymentStep from './PaymentStep';
 import { Icon } from './RegisterFields';
-import { generateReference } from './registerData';
+import { generateReference, SKILL_AGE_MIN, SKILL_AGE_MAX } from './registerData';
 import { LOGO_SRC } from '../shared/Logo';
 import { getTier } from '../shared/membershipTiers';
 import { publicApi } from '../shared/api';
@@ -20,26 +19,33 @@ const PAYSTACK_PUBLIC_KEY = process.env.REACT_APP_PAYSTACK_PUBLIC_KEY;
 const EMPTY_MEMBER = {
   fullName: '',
   gender: '',
+  age: '',
   phoneNumber: '',
   email: '',
   passportPhotoUrl: '',
   password: '',
   confirmPassword: '',
   consent: false,
+  // Skill training is an optional add-on to the same registration, covered by
+  // the same one-time fee — not a second, separately-priced product.
+  wantsTraining: false,
+  skill: '',
 };
 
-// The registration page: membership sign-up and skill-training applications
-// side by side. The long business/professional questionnaire it replaced is
-// still available at /register/full and is linked from the footer.
+// The registration page: one form covering membership and, optionally, a
+// skill-training application. The long business/professional questionnaire it
+// replaced is still available at /register/full and is linked from the footer.
 function RegisterPage() {
   useSeo(routeMeta('/register'));
 
-  // Flat registration fee — every new signup is the 'standard' tier.
+  // One-time registration fee, the same for everyone. Every new signup is
+  // recorded against the 'standard' tier; adding skill training does not
+  // change what is charged.
   const tier = getTier('standard');
   const feeNaira = tier.priceNaira;
 
-  // 'forms' — the two modules. 'review' — Review & Pay, after the membership
-  // form validates but before any money changes hands. 'done' — thank you.
+  // 'forms' — the registration form. 'review' — Review & Pay, after the form
+  // validates but before any money changes hands. 'done' — thank you.
   const [step, setStep] = useState('forms');
   const [values, setValues] = useState(EMPTY_MEMBER);
   const [submitting, setSubmitting] = useState(false);
@@ -139,6 +145,17 @@ function RegisterPage() {
     if (values.password !== values.confirmPassword) return fail('Your password and its confirmation do not match.');
     if (!values.consent) return fail('Please accept the directory consent to continue.');
 
+    // Age is only asked of training applicants — the server's skill-application
+    // validator requires it, so it is checked here rather than after payment,
+    // where a rejection would be far more expensive to explain.
+    if (values.wantsTraining) {
+      const age = Number.parseInt(values.age, 10);
+      if (!Number.isInteger(age) || age < SKILL_AGE_MIN || age > SKILL_AGE_MAX) {
+        return fail(`Please enter a valid age between ${SKILL_AGE_MIN} and ${SKILL_AGE_MAX} for your training application.`);
+      }
+      if (!values.skill) return fail('Please choose the skill you want to learn, or untick skill training.');
+    }
+
     setSubmitting(true);
     // One account per email — checked BEFORE payment so nobody pays (or
     // uploads proof) only to be told their email is already registered. Fails
@@ -182,6 +199,19 @@ function RegisterPage() {
   // "pay later".
   const submitMember = async (reference, method, proofUrl) => {
     setSubmitting(true);
+    // Read before the form is cleared below — the training request is sent
+    // after the member is saved, and would otherwise post an empty form.
+    const training = values.wantsTraining
+      ? {
+        full_name: values.fullName.trim(),
+        gender: values.gender,
+        age: Number.parseInt(values.age, 10),
+        phone_number: values.phoneNumber.trim(),
+        email: values.email.trim(),
+        skill: values.skill,
+      }
+      : null;
+
     try {
       const response = await fetch('/api/members', {
         method: 'POST',
@@ -192,10 +222,35 @@ function RegisterPage() {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error || `HTTP ${response.status}`);
       }
+
+      // The training request is a separate record, sent only after the member
+      // exists. Strictly best-effort: the fee has already been settled and it
+      // covers training either way, so a failure here must never turn a
+      // completed registration into an error screen. The thank-you page says
+      // plainly whether it got through, so nobody is left assuming it did.
+      let trainingSaved = false;
+      if (training) {
+        try {
+          await publicApi('/api/skills', {
+            method: 'POST',
+            body: JSON.stringify(training),
+          });
+          trainingSaved = true;
+        } catch {
+          trainingSaved = false;
+        }
+      }
+
       setValues(EMPTY_MEMBER);
       setBankProof({ url: '', uploading: false, error: '' });
       setSaveFailure(null);
-      setOutcome({ reference, method });
+      setOutcome({
+        reference,
+        method,
+        requestedTraining: !!training,
+        trainingSaved,
+        skill: training ? training.skill : '',
+      });
       setStep('done');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -280,18 +335,15 @@ function RegisterPage() {
 
         <div className="forms-grid">
           {step === 'forms' && (
-            <>
-              <MembershipForm
-                values={values}
-                onChange={handleChange}
-                onSubmit={handleContinue}
-                submitting={submitting}
-                feeNaira={feeNaira}
-                passport={passport}
-                onPassportPick={handlePassportPick}
-              />
-              <SkillForm onToast={showToast} />
-            </>
+            <RegistrationForm
+              values={values}
+              onChange={handleChange}
+              onSubmit={handleContinue}
+              submitting={submitting}
+              feeNaira={feeNaira}
+              passport={passport}
+              onPassportPick={handlePassportPick}
+            />
           )}
 
           {step === 'review' && !saveFailure && (
@@ -382,6 +434,28 @@ function RegisterPage() {
                   verification email, then{' '}
                   <a href="/member">log in to the Member Portal</a> with your
                   email and the password you chose.
+                </p>
+              )}
+
+              {/* Said either way. A training request that silently failed
+                  would otherwise look identical to one that worked, and the
+                  member would only find out by never being called. */}
+              {outcome.requestedTraining && (
+                <p className="success-text">
+                  {outcome.trainingSaved ? (
+                    <>
+                      <Icon name="school" /> Your <strong>{outcome.skill}</strong>{' '}
+                      training request was received — our team will call you with
+                      the next intake dates. Nothing further to pay.
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="warning" /> Your registration is saved, but your{' '}
+                      <strong>{outcome.skill}</strong> training request did not go
+                      through. Nothing extra is owed — contact us with the
+                      reference below and we'll add it by hand.
+                    </>
+                  )}
                 </p>
               )}
 
