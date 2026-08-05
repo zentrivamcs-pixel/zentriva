@@ -199,19 +199,28 @@ const ACTIONS = {
   'admin-login': adminLogin,
 };
 
+// Actions that never read or write the member database. The dispatcher used
+// to open a connection for every action before handing off, which quietly
+// made admin sign-in depend on Turso being healthy: a rejected auth token or
+// an outage turned POST /api/auth/admin-login into a 500 and locked the
+// operator out of the very dashboard they needed to diagnose it. Anything
+// listed here is dispatched without touching the database.
+const DB_FREE_ACTIONS = new Set(['admin-login']);
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const handler = ACTIONS[req.query.action];
+  const action = req.query.action;
+  const handler = ACTIONS[action];
   if (!handler) return res.status(404).json({ error: 'Not found' });
 
   try {
-    const db = await getReadyDb();
+    const db = DB_FREE_ACTIONS.has(action) ? null : await getReadyDb();
     return await handler(req, res, db);
   } catch (err) {
-    return sendServerError(res, err, `POST /api/auth/${req.query.action}`);
+    return sendServerError(res, err, `POST /api/auth/${action}`);
   }
 };

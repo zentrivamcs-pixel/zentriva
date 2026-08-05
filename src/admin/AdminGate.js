@@ -5,6 +5,24 @@ import Logo from '../shared/Logo';
 import { getAdminToken, setAdminToken, clearAdminToken, publicApi } from '../shared/api';
 import { useSeo } from '../shared/seo';
 
+// The sign-in gate is the first — and during an outage the only — page an
+// operator can reach, so it says which side failed instead of echoing the
+// API's deliberately generic "Server error". Mistaking a broken deployment
+// for a mistyped password costs real time.
+function loginErrorMessage(err) {
+  if (err.status === 401) return 'Incorrect password. Please try again.';
+  if (err.status === 503 || err.code === 'DB_UNAVAILABLE') {
+    return 'The server is temporarily unavailable. Please try again in a moment.';
+  }
+  if (err.status >= 500) {
+    return `Sign-in failed: the server returned HTTP ${err.status}. This is a server-side fault, not your password — check the deployment logs.`;
+  }
+  if (!err.status) {
+    return 'Could not reach the server. Check your connection and try again.';
+  }
+  return err.message || 'Sign-in failed. Please try again.';
+}
+
 function AdminGate() {
   // Private area: keep it out of Google entirely (the X-Robots-Tag header in
   // vercel.json says the same thing at the edge).
@@ -30,8 +48,10 @@ function AdminGate() {
       setAuthed(true);
       setPassword('');
     } catch (err) {
-      setError(err.status === 401 ? 'Incorrect password. Please try again.' : err.message);
-      setPassword('');
+      setError(loginErrorMessage(err));
+      // Only a rejected password is worth retyping. Clearing the field after a
+      // server fault just makes the operator type it again for the next 500.
+      if (err.status === 401) setPassword('');
     } finally {
       setChecking(false);
     }
