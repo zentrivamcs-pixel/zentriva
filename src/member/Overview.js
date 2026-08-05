@@ -52,6 +52,33 @@ function Overview() {
         </div>
       </section>
 
+      {/* Registration fee outstanding (or under review) — the member needs to
+          know before anything else on the page, so it sits above the grid. */}
+      {view.paymentTag && (
+        <section
+          className={`mb-8 rounded-xl p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between ${view.paymentTag.className}`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined">{view.paymentTag.icon}</span>
+            <div>
+              <p className="font-label-md text-label-md font-bold">{view.paymentTag.label}</p>
+              <p className="font-label-sm text-label-sm opacity-90">
+                {view.paymentTag.detail}
+                {view.feeOutstanding && ` Outstanding: ₦${view.tierFeeNaira.toLocaleString()}.`}
+              </p>
+            </div>
+          </div>
+          {view.feeOutstanding && (
+            <Link
+              to="/member/billing"
+              className="whitespace-nowrap px-5 py-2.5 rounded-lg font-label-md text-label-md bg-on-error-container text-error-container no-underline hover:opacity-90 transition-opacity"
+            >
+              Settle it now
+            </Link>
+          )}
+        </section>
+      )}
+
       <div className="bento-grid">
         {/* Membership Status Card */}
         <div
@@ -68,14 +95,24 @@ function Overview() {
             />
           </div>
           <div className="flex-grow">
-            <div
-              className={`inline-flex items-center px-3 py-1 rounded-full text-label-sm font-label-sm mb-4 ${
-                view.active
-                  ? 'bg-secondary-container text-on-secondary-container'
-                  : 'bg-error-container text-on-error-container'
-              }`}
-            >
-              {view.statusLabel}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-label-sm font-label-sm ${
+                  view.active
+                    ? 'bg-secondary-container text-on-secondary-container'
+                    : 'bg-error-container text-on-error-container'
+                }`}
+              >
+                {view.statusLabel}
+              </span>
+              {view.paymentTag && (
+                <span
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-sm font-label-sm ${view.paymentTag.className}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">{view.paymentTag.icon}</span>
+                  {view.paymentTag.label}
+                </span>
+              )}
             </div>
             <h3 className="font-headline-md text-headline-md text-primary mb-2">
               {view.tierLabel}

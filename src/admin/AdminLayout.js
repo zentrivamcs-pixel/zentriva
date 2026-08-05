@@ -22,6 +22,11 @@ function AdminLayout({ onLogout }) {
   const [inboxLoading, setInboxLoading] = useState(true);
   const [inboxError, setInboxError] = useState('');
 
+  // "Learn a Skill" applications from the registration page.
+  const [skillApplications, setSkillApplications] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+  const [skillsError, setSkillsError] = useState('');
+
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -84,6 +89,53 @@ function AdminLayout({ onLogout }) {
   }, [handleAuthError]);
 
   useEffect(() => { loadInbox(); }, [loadInbox]);
+
+  // Same shape as loadInbox: a failure is surfaced rather than swallowed, so
+  // "no requests" and "the request failed" never look the same.
+  const loadSkills = useCallback(async () => {
+    setSkillsLoading(true);
+    setSkillsError('');
+    try {
+      const data = await adminApi('/api/skills');
+      setSkillApplications(data || []);
+    } catch (error) {
+      console.error('Error loading skill requests:', error);
+      if (!handleAuthError(error)) {
+        setSkillsError(error.message || 'Could not load skill requests.');
+      }
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, [handleAuthError]);
+
+  useEffect(() => { loadSkills(); }, [loadSkills]);
+
+  const setSkillStatus = useCallback(async (application, status) => {
+    const previous = application.status;
+    setSkillApplications((prev) => prev.map((a) => (a.id === application.id ? { ...a, status } : a)));
+    try {
+      await adminApi(`/api/skills?id=${application.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    } catch (error) {
+      console.error('Error updating skill request:', error);
+      // Put the row back the way it was — the server disagreed.
+      setSkillApplications((prev) => prev.map((a) => (a.id === application.id ? { ...a, status: previous } : a)));
+      if (!handleAuthError(error)) alert(error.message || 'Failed to update the request');
+    }
+  }, [handleAuthError]);
+
+  const deleteSkillApplication = useCallback(async (application) => {
+    if (!window.confirm(`Delete ${application.full_name}'s ${application.skill} request? This cannot be undone.`)) return;
+    try {
+      await adminApi(`/api/skills?id=${application.id}`, { method: 'DELETE' });
+      setSkillApplications((prev) => prev.filter((a) => a.id !== application.id));
+    } catch (error) {
+      console.error('Error deleting skill request:', error);
+      if (!handleAuthError(error)) alert('Failed to delete the request');
+    }
+  }, [handleAuthError]);
 
   const markMessageRead = useCallback(async (message, read = true) => {
     setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, is_read: read } : m)));
@@ -221,6 +273,7 @@ function AdminLayout({ onLogout }) {
         open={navOpen}
         onClose={() => setNavOpen(false)}
         unreadCount={messages.filter((m) => !m.is_read).length}
+        newSkillCount={skillApplications.filter((a) => a.status === 'new').length}
       />
 
       <div className="md:ml-64">
@@ -232,6 +285,8 @@ function AdminLayout({ onLogout }) {
               setViewing, openEdit, handleDelete, handleResetAccount,
               handlePaymentDecision, openPaymentEdit,
               messages, inboxLoading, inboxError, reloadInbox: loadInbox, markMessageRead,
+              skillApplications, skillsLoading, skillsError, reloadSkills: loadSkills,
+              setSkillStatus, deleteSkillApplication,
             }}
           />
         </main>

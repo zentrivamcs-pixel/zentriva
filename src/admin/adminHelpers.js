@@ -21,6 +21,8 @@ export const FIELD_LABELS = {
   open_to_partnerships: 'Open to Partnerships',
   offer_discounts: 'Offers Discounts',
   employs_staff: 'Employs Staff',
+  payment_status: 'Payment Status',
+  payment_method: 'Payment Method',
 };
 
 // Every Dashboard card/chart that represents a slice of the membership
@@ -174,12 +176,17 @@ export const DETAIL_SECTIONS = [
 export const PAYMENT_STATUS_LABELS = {
   paid: { label: 'Paid', className: 'bg-secondary-container text-on-secondary-container' },
   pending_review: { label: 'Pending Review', className: 'bg-tertiary-container text-on-tertiary-container' },
+  // "Pay later" registrations: nothing has been received yet, which is a
+  // stronger signal than a transfer waiting to be checked — hence the error
+  // colour rather than the tertiary one.
+  pending_payment: { label: 'Pending Payment', className: 'bg-error-container text-on-error-container' },
   rejected: { label: 'Rejected', className: 'bg-error-container text-on-error-container' },
 };
 
 export const PAYMENT_METHOD_LABELS = {
   paystack: 'Paystack',
   bank_transfer: 'Bank Transfer',
+  pay_later: 'Pay Later',
 };
 
 // The values an admin may set by hand in the Edit Payment dialog. These must

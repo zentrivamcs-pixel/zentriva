@@ -21,8 +21,10 @@ const CATEGORIES = ['Executive Member', 'Non-Executive Member'];
 const YES_NO = ['Yes', 'No'];
 // Payment state an admin may set by hand (see cleanPaymentUpdate). Mirrors
 // the values registration writes in shared/membersRepo.js.
-const PAYMENT_STATUSES = ['paid', 'pending_review', 'rejected'];
-const PAYMENT_METHODS = ['paystack', 'bank_transfer'];
+// 'pending_payment' is the "pay later" state: the member registered and can
+// use the portal, but the registration fee has not been collected yet.
+const PAYMENT_STATUSES = ['paid', 'pending_review', 'pending_payment', 'rejected'];
+const PAYMENT_METHODS = ['paystack', 'bank_transfer', 'pay_later'];
 const YEARS_IN_BUSINESS = ['Less than 1 year', '1 – 3 years', '4 – 7 years', 'More than 7 years'];
 
 const PASSWORD_MIN = 8;
@@ -91,7 +93,9 @@ function cleanPhone(value) {
 const FIELD_SPECS = {
   full_name: { clean: (v) => cleanString(v, 120), required: true },
   gender: { clean: (v) => cleanEnum(v, GENDERS), required: true },
-  membership_category: { clean: (v) => cleanEnum(v, CATEGORIES), required: true },
+  // Optional: the short registration form (src/register) doesn't ask for a
+  // category — only the long business-directory form at /register/full does.
+  membership_category: { clean: (v) => cleanEnum(v, CATEGORIES) },
   date_of_birth: { clean: (v) => (typeof v === 'string' && DATE_RE.test(v) ? v : null) },
   phone_number: { clean: cleanPhone, required: true },
   whatsapp_number: { clean: cleanPhone },
@@ -166,12 +170,55 @@ function validateRegistration(body) {
   if (body && body.phone_number && !value.phone_number) {
     errors.push('phone number is not a valid number for its country/region');
   }
-  if (value.employment_status.length === 0) {
-    errors.push('at least one employment status is required');
-  }
+  // employment_status is deliberately NOT required: the short registration
+  // form collects contact details only, and the long directory form enforces
+  // "at least one" client-side for its own section.
   if (value.consent !== true) {
     errors.push('consent is required to register');
   }
+
+  return { value, errors };
+}
+
+// --- Skill acquisition applications -------------------------------------------
+
+// The training programmes offered on the registration page's "Learn a Skill"
+// module. Mirrored in src/register/registerData.js (kept in sync by hand, same
+// convention as membershipTiers.js) — an application naming anything else is
+// rejected rather than silently stored.
+const TRAINING_SKILLS = [
+  'Phone Repairs', 'Computer Repairs', 'Electronics', 'Plumbing', 'Catering',
+  'Website Development', 'Sound Engineering', 'Graphics Design (Printing Press etc)',
+  'Digital Marketing', 'Photography', 'Quality Assurance', 'Welding',
+  'Fashion Designing', 'Driving', 'Farming and Agro', 'Interior Decoration',
+];
+
+const SKILL_AGE_MIN = 10;
+const SKILL_AGE_MAX = 100;
+
+// Full validation for a public "Learn a Skill" application. Same contract as
+// validateRegistration: registration must be rejected when errors is non-empty.
+function validateSkillApplication(body) {
+  const source = body || {};
+  const age = Number.parseInt(source.age, 10);
+  const value = {
+    full_name: cleanString(source.full_name, 120),
+    gender: cleanEnum(source.gender, GENDERS),
+    age: Number.isInteger(age) && age >= SKILL_AGE_MIN && age <= SKILL_AGE_MAX ? age : null,
+    phone_number: cleanPhone(source.phone_number),
+    email: source.email === undefined || source.email === null || source.email === ''
+      ? null
+      : cleanEmail(source.email),
+    skill: cleanEnum(cleanString(source.skill, 120), TRAINING_SKILLS),
+  };
+
+  const errors = [];
+  if (!value.full_name) errors.push('full name is required');
+  if (!value.gender) errors.push('gender is required');
+  if (!value.age) errors.push(`age must be a number between ${SKILL_AGE_MIN} and ${SKILL_AGE_MAX}`);
+  if (!value.phone_number) errors.push('phone number is not a valid number for its country/region');
+  if (!value.skill) errors.push('please choose one of the listed skills');
+  if (source.email && !value.email) errors.push('email address is not valid');
 
   return { value, errors };
 }
@@ -262,7 +309,8 @@ function cleanPaymentUpdate(body) {
 
 module.exports = {
   cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum, cleanUrl,
-  validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite,
-  cleanPaymentUpdate, PAYMENT_STATUSES, PAYMENT_METHODS,
+  validateRegistration, validateSkillApplication, passwordError,
+  cleanProfileUpdate, cleanAdminWrite,
+  cleanPaymentUpdate, PAYMENT_STATUSES, PAYMENT_METHODS, TRAINING_SKILLS,
   PASSWORD_MIN, PASSWORD_MAX,
 };

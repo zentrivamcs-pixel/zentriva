@@ -1,0 +1,929 @@
+/* ============================================================
+   REGISTRATION PAGE (/register)
+   Every rule is scoped under .register-page so this design stays
+   sealed off from App.css (which styles the long directory form at
+   /register/full) and from the member portal's Tailwind layer.
+   ============================================================ */
+
+.register-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.5rem 1rem 2.5rem;
+  background: #0b1a22;
+  overflow-x: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.register-page *,
+.register-page *::before,
+.register-page *::after {
+  box-sizing: border-box;
+}
+
+/* ===== ANIMATED BACKGROUND ===== */
+.register-page .bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse at 20% 30%, rgba(20, 70, 85, 0.6) 0%, rgba(8, 30, 40, 0.85) 80%);
+  overflow: hidden;
+}
+
+.register-page .bg-mockup {
+  position: absolute;
+  top: -10%;
+  right: -8%;
+  width: 65%;
+  max-width: 900px;
+  height: auto;
+  opacity: 0.18;
+  transform: rotate(6deg) scale(1.1);
+  animation: reg-float-mockup 22s ease-in-out infinite alternate;
+  pointer-events: none;
+  user-select: none;
+  border-radius: 2rem;
+  filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.5));
+}
+
+@keyframes reg-float-mockup {
+  0% { transform: rotate(4deg) scale(1.05) translate(0, 0); opacity: 0.14; }
+  33% { transform: rotate(8deg) scale(1.12) translate(12px, -18px); opacity: 0.22; }
+  66% { transform: rotate(2deg) scale(1.08) translate(-8px, 10px); opacity: 0.16; }
+  100% { transform: rotate(6deg) scale(1.15) translate(6px, -6px); opacity: 0.2; }
+}
+
+.register-page .orb {
+  position: absolute;
+  border-radius: 50%;
+  animation: reg-orb-float 30s infinite alternate ease-in-out;
+  pointer-events: none;
+}
+
+.register-page .orb-1 {
+  width: 400px;
+  height: 400px;
+  bottom: -100px;
+  left: -120px;
+  background: radial-gradient(circle, rgba(40, 150, 180, 0.08), transparent 70%);
+  animation-duration: 28s;
+}
+
+.register-page .orb-2 {
+  width: 300px;
+  height: 300px;
+  top: 10%;
+  right: 5%;
+  background: radial-gradient(circle, rgba(30, 200, 210, 0.05), transparent 70%);
+  animation-duration: 35s;
+  animation-delay: -5s;
+}
+
+.register-page .orb-3 {
+  width: 200px;
+  height: 200px;
+  bottom: 20%;
+  right: 30%;
+  background: radial-gradient(circle, rgba(100, 200, 220, 0.05), transparent 70%);
+  animation-duration: 25s;
+  animation-delay: -12s;
+}
+
+@keyframes reg-orb-float {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(15px, -15px) scale(1.05); }
+}
+
+.register-page .bg-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg,
+    rgba(10, 50, 65, 0.3) 0%,
+    rgba(20, 90, 110, 0.1) 30%,
+    rgba(5, 40, 55, 0.4) 70%,
+    rgba(15, 60, 75, 0.2) 100%);
+  animation: reg-shimmer 18s infinite alternate ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes reg-shimmer {
+  0% { opacity: 0.4; transform: scale(1) rotate(0deg); }
+  50% { opacity: 0.7; transform: scale(1.02) rotate(1deg); }
+  100% { opacity: 0.3; transform: scale(1) rotate(-1deg); }
+}
+
+/* Visitors who ask for less motion get the same design, held still. */
+@media (prefers-reduced-motion: reduce) {
+  .register-page .bg-mockup,
+  .register-page .orb,
+  .register-page .bg-shimmer {
+    animation: none;
+  }
+}
+
+/* ===== MAIN CARD ===== */
+.register-page .coop-card {
+  position: relative;
+  z-index: 2;
+  max-width: 1000px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 2rem;
+  padding: 2rem 1.8rem;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ===== LOGO HEADER ===== */
+.register-page .logo-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(0, 80, 100, 0.12);
+  flex-wrap: wrap;
+}
+
+.register-page .logo-header img {
+  height: 60px;
+  width: 60px;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0, 30, 40, 0.15));
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.register-page .logo-header img:hover {
+  transform: scale(1.04);
+}
+
+.register-page .brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 140px;
+}
+
+.register-page .coop-name {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #0b3b4a, #1a6b7a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.1;
+}
+
+.register-page .coop-tagline {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1f5a68;
+  background: rgba(26, 107, 122, 0.1);
+  padding: 0.2rem 0.9rem;
+  border-radius: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+  width: fit-content;
+}
+
+.register-page .icon {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  flex-shrink: 0;
+}
+
+/* ===== FORMS GRID ===== */
+.register-page .forms-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  align-items: start;
+}
+
+.register-page .form-module {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 1.5rem;
+  padding: 1.5rem 1.5rem 1.8rem;
+  box-shadow: 0 8px 24px rgba(0, 20, 30, 0.06);
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.register-page .form-module:hover {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 32px rgba(0, 40, 60, 0.1);
+  transform: translateY(-2px);
+}
+
+/* The full-width panels (Review & Pay, success) reuse the module surface but
+   never lift on hover — they are the page's whole content, not a card in a
+   pair of choices. */
+.register-page .form-module.is-panel {
+  grid-column: 1 / -1;
+}
+
+.register-page .form-module.is-panel:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 24px rgba(0, 20, 30, 0.06);
+}
+
+.register-page .form-module h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #0a3340;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.2rem;
+  letter-spacing: -0.3px;
+}
+
+.register-page .form-module h2 .icon {
+  color: #1e7e8f;
+  font-size: 1.4rem;
+}
+
+.register-page .module-intro {
+  color: #1f5f6e;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+  opacity: 0.85;
+  line-height: 1.45;
+}
+
+.register-page .form-group {
+  margin-bottom: 1rem;
+}
+
+.register-page .form-group label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #1f4f5c;
+  margin-bottom: 0.3rem;
+}
+
+.register-page .form-group label .icon {
+  font-size: 0.9rem;
+  color: #3f7e8c;
+  vertical-align: -0.18em;
+  margin-right: 4px;
+}
+
+.register-page input,
+.register-page select {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 1.5px solid rgba(200, 225, 235, 0.7);
+  border-radius: 60px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: rgba(255, 255, 255, 0.75);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  color: #12343e;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.register-page input:focus,
+.register-page select:focus {
+  border-color: #1e8a9e;
+  box-shadow: 0 0 0 3px rgba(30, 138, 158, 0.15);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.register-page input::placeholder {
+  color: #8aacb8;
+  font-size: 0.85rem;
+}
+
+.register-page select {
+  cursor: pointer;
+  padding-right: 2.5rem;
+}
+
+.register-page .select-wrapper {
+  position: relative;
+}
+
+.register-page .select-wrapper .icon {
+  position: absolute;
+  right: 1.1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #5e8d9a;
+  pointer-events: none;
+  font-size: 1.1rem;
+}
+
+/* ===== GENDER / CHOICE PILLS ===== */
+.register-page .gender-options {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.register-page .gender-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.85rem;
+  color: #12343e;
+  background: rgba(240, 248, 250, 0.6);
+  padding: 0.4rem 1rem 0.4rem 0.8rem;
+  border-radius: 40px;
+  border: 2px solid rgba(200, 225, 235, 0.5);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+
+.register-page .gender-options label:hover {
+  background: rgba(220, 240, 245, 0.7);
+  border-color: #b3d5dd;
+}
+
+.register-page .gender-options input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1a7a8a;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.register-page .gender-options label.is-selected {
+  background: rgba(26, 122, 138, 0.12);
+  border-color: #1a7a8a;
+  box-shadow: 0 0 0 2px rgba(26, 122, 138, 0.15);
+}
+
+/* ===== CONSENT ===== */
+.register-page .consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #1f4f5c;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.register-page .consent-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: #1a7a8a;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.register-page .consent-row a {
+  color: #0f4d5e;
+  font-weight: 600;
+}
+
+/* ===== FILE UPLOAD ===== */
+.register-page .upload-field {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.register-page .upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(30, 126, 143, 0.08);
+  color: #0f4d5e;
+  border: 1.5px dashed rgba(30, 126, 143, 0.45);
+  padding: 0.55rem 1.2rem;
+  border-radius: 60px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.register-page .upload-button:hover {
+  background: rgba(30, 126, 143, 0.16);
+  border-color: #1e7e8f;
+}
+
+.register-page .upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-page .upload-preview {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid rgba(30, 126, 143, 0.3);
+  flex-shrink: 0;
+}
+
+.register-page .upload-status {
+  font-size: 0.72rem;
+  color: #3c7483;
+}
+
+/* ===== BUTTONS ===== */
+.register-page .btn-submit {
+  width: 100%;
+  background: #0f4d5e;
+  border: none;
+  padding: 0.75rem 1.2rem;
+  border-radius: 60px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  margin-top: 0.4rem;
+  box-shadow: 0 6px 16px rgba(12, 70, 85, 0.15);
+  letter-spacing: 0.3px;
+}
+
+.register-page .btn-submit:hover:not(:disabled) {
+  background: #0a3e4d;
+  transform: scale(1.02);
+  box-shadow: 0 12px 24px -4px rgba(10, 60, 75, 0.3);
+}
+
+.register-page .btn-submit:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.register-page .btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.register-page .btn-ghost {
+  width: 100%;
+  background: transparent;
+  color: #0f4d5e;
+  border: 2px solid rgba(15, 77, 94, 0.35);
+  padding: 0.65rem 1.2rem;
+  border-radius: 60px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  margin-top: 0.6rem;
+}
+
+.register-page .btn-ghost:hover:not(:disabled) {
+  background: rgba(15, 77, 94, 0.08);
+  border-color: #0f4d5e;
+}
+
+.register-page .btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-page .note-safe {
+  font-size: 0.68rem;
+  color: #3c7483;
+  margin-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.register-page .note-safe .icon {
+  font-size: 0.9rem;
+}
+
+/* ===== ERRORS ===== */
+.register-page .form-error {
+  background: rgba(190, 40, 50, 0.08);
+  border: 1px solid rgba(190, 40, 50, 0.25);
+  color: #8c2130;
+  border-radius: 14px;
+  padding: 0.7rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.register-page .form-error .icon {
+  font-size: 1.1rem;
+}
+
+/* ===== REVIEW & PAY ===== */
+.register-page .summary-box {
+  background: rgba(30, 126, 143, 0.07);
+  border: 1px solid rgba(30, 126, 143, 0.2);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  font-size: 0.85rem;
+  color: #12343e;
+  line-height: 1.7;
+  margin-bottom: 1.2rem;
+}
+
+.register-page .summary-box strong {
+  color: #0a3340;
+}
+
+.register-page .summary-fee {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  border-top: 1px dashed rgba(30, 126, 143, 0.35);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  font-weight: 700;
+  color: #0a3340;
+}
+
+.register-page .pay-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.register-page .pay-option {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(200, 225, 235, 0.8);
+  border-radius: 1.2rem;
+  padding: 1.1rem 1.2rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.register-page .pay-option:hover:not(:disabled) {
+  border-color: #1e8a9e;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0, 40, 60, 0.1);
+}
+
+.register-page .pay-option.is-selected {
+  border-color: #0f4d5e;
+  box-shadow: 0 0 0 3px rgba(30, 138, 158, 0.18);
+}
+
+.register-page .pay-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.register-page .pay-option-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0a3340;
+}
+
+.register-page .pay-option-title .icon {
+  color: #1e7e8f;
+  font-size: 1.25rem;
+}
+
+.register-page .pay-option-note {
+  font-size: 0.76rem;
+  color: #33707f;
+  line-height: 1.5;
+}
+
+.register-page .pay-panel {
+  margin-top: 1.2rem;
+  border-top: 1px solid rgba(0, 80, 100, 0.12);
+  padding-top: 1.2rem;
+}
+
+.register-page .bank-details {
+  background: rgba(11, 59, 74, 0.05);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: #12343e;
+  margin-bottom: 1rem;
+}
+
+.register-page .bank-details strong {
+  color: #0a3340;
+  letter-spacing: 0.3px;
+}
+
+.register-page .pending-callout {
+  background: rgba(200, 140, 20, 0.1);
+  border: 1px solid rgba(200, 140, 20, 0.3);
+  color: #7a5310;
+  border-radius: 14px;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.register-page .pending-callout .icon {
+  font-size: 1.15rem;
+}
+
+/* ===== SUCCESS SCREEN ===== */
+.register-page .success-panel {
+  text-align: center;
+}
+
+.register-page .success-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 0.6rem;
+}
+
+.register-page .success-panel h2 {
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.register-page .success-text {
+  color: #1f5f6e;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 46ch;
+  margin: 0 auto 1.2rem;
+}
+
+.register-page .success-text a {
+  color: #0f4d5e;
+  font-weight: 600;
+}
+
+.register-page .reference-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(30, 126, 143, 0.1);
+  border-radius: 40px;
+  padding: 0.4rem 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f4d5e;
+  margin-bottom: 1.2rem;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.register-page .success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.register-page .whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #128c7e;
+  color: #fff;
+  border-radius: 60px;
+  padding: 0.7rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: filter 0.2s ease;
+}
+
+.register-page .whatsapp-link:hover {
+  filter: brightness(1.08);
+}
+
+/* ===== FOOTER ===== */
+.register-page .privacy-footer {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(0, 70, 85, 0.08);
+  color: #1f5767;
+  text-align: center;
+}
+
+.register-page .privacy-footer .icon {
+  color: #1e7e8f;
+  font-size: 1.3rem;
+}
+
+.register-page .privacy-footer span {
+  background: rgba(30, 126, 143, 0.06);
+  padding: 0.2rem 1rem;
+  border-radius: 40px;
+  font-size: 0.8rem;
+}
+
+.register-page .privacy-footer small {
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.register-page .page-links {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.register-page .btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  color: #0f4d5e;
+  border: 2px solid #0f4d5e;
+  padding: 0.6rem 1.6rem;
+  border-radius: 60px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+  letter-spacing: 0.3px;
+}
+
+.register-page .btn-back:hover {
+  background: #0f4d5e;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.register-page .text-link {
+  font-size: 0.78rem;
+  color: #1f5a68;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.register-page .text-link:hover {
+  color: #0a3340;
+}
+
+/* ===== TOAST ===== */
+.register-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: rgba(8, 40, 52, 0.94);
+  backdrop-filter: blur(12px);
+  color: white;
+  padding: 0.7rem 1.5rem;
+  border-radius: 60px;
+  font-weight: 500;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  z-index: 999;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 90%;
+  text-align: left;
+}
+
+.register-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.register-toast .icon {
+  color: #9fd9e8;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .register-page .coop-card {
+    padding: 1.5rem 1.2rem;
+    border-radius: 1.5rem;
+  }
+  .register-page .forms-grid { gap: 1.2rem; }
+  .register-page .logo-header img { height: 50px; width: 50px; }
+  .register-page .coop-name { font-size: 1.4rem; }
+}
+
+@media (max-width: 768px) {
+  .register-page { padding: 1rem 0.8rem 2rem; }
+  .register-page .coop-card { padding: 1.2rem 1rem; }
+  .register-page .forms-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .register-page .form-module { padding: 1.2rem 1.2rem 1.5rem; }
+  .register-page .logo-header { gap: 0.8rem; margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
+  .register-page .logo-header img { height: 45px; width: 45px; }
+  .register-page .coop-name { font-size: 1.3rem; }
+  .register-page .coop-tagline { font-size: 0.7rem; padding: 0.15rem 0.7rem; }
+  .register-page .form-module h2 { font-size: 1.1rem; }
+  .register-page input,
+  .register-page select { font-size: 0.85rem; padding: 0.55rem 0.9rem; }
+  .register-page .btn-submit { font-size: 0.9rem; padding: 0.65rem 1rem; }
+  .register-page .privacy-footer { gap: 0.5rem; margin-top: 1.5rem; padding-top: 0.8rem; }
+  .register-page .bg-mockup { width: 80%; right: -20%; top: -5%; opacity: 0.12; }
+  .register-page .orb-1 { width: 200px; height: 200px; bottom: -50px; left: -60px; }
+  .register-page .orb-2 { width: 150px; height: 150px; }
+  .register-page .orb-3 { width: 100px; height: 100px; }
+}
+
+@media (max-width: 480px) {
+  .register-page { padding: 0.8rem 0.5rem 1.5rem; }
+  .register-page .coop-card { padding: 1rem 0.8rem; border-radius: 1.2rem; }
+  .register-page .logo-header { gap: 0.6rem; margin-bottom: 1rem; padding-bottom: 0.6rem; }
+  .register-page .logo-header img { height: 38px; width: 38px; }
+  .register-page .coop-name { font-size: 1.1rem; }
+  .register-page .coop-tagline { font-size: 0.6rem; padding: 0.15rem 0.6rem; }
+  .register-page .form-module { padding: 1rem 1rem 1.2rem; border-radius: 1.2rem; }
+  .register-page .form-module h2 { font-size: 1rem; margin-bottom: 0.8rem; }
+  .register-page .module-intro { font-size: 0.75rem; margin-bottom: 0.8rem; }
+  .register-page .form-group { margin-bottom: 0.8rem; }
+  .register-page .form-group label { font-size: 0.6rem; }
+  .register-page input,
+  .register-page select { font-size: 0.8rem; padding: 0.5rem 0.8rem; border-radius: 40px; }
+  .register-page .btn-submit,
+  .register-page .btn-ghost { font-size: 0.8rem; padding: 0.55rem 0.8rem; border-radius: 40px; }
+  .register-page .gender-options label { font-size: 0.75rem; padding: 0.25rem 0.7rem 0.25rem 0.5rem; }
+  .register-page .privacy-footer span { font-size: 0.65rem; }
+  .register-page .privacy-footer small { font-size: 0.6rem; }
+  .register-page .btn-back { padding: 0.45rem 1.2rem; font-size: 0.75rem; }
+  .register-toast { font-size: 0.78rem; padding: 0.55rem 1rem; bottom: 1rem; max-width: 92%; }
+  .register-page .bg-mockup { width: 100%; right: -30%; top: 0; opacity: 0.1; }
+}

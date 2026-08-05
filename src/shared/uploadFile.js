@@ -19,9 +19,20 @@ export async function uploadImage(file, prefix) {
   }
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
   const pathname = `${prefix}/${Date.now()}-${safeName}`;
+
+  // Short-lived ticket proving this upload came from a page on our own site
+  // rather than a script pointed straight at /api/uploads. Fetched per
+  // upload so it can't go stale on a form left open — see api/uploads.js.
+  const ticketResponse = await fetch('/api/uploads');
+  if (!ticketResponse.ok) {
+    throw new Error('Uploads are unavailable right now. Please try again in a moment.');
+  }
+  const { ticket } = await ticketResponse.json();
+
   const blob = await upload(pathname, file, {
     access: 'public',
     handleUploadUrl: '/api/uploads',
+    clientPayload: ticket,
   });
   return blob.url;
 }

@@ -6,7 +6,14 @@ import { SUPPORT_EMAIL } from '../shared/contact';
 
 // Fixed sidebar on md+ screens; a slide-in drawer (with backdrop) on mobile,
 // toggled from the top nav's hamburger.
-function AdminSideNav({ onLogout, open, onClose, unreadCount = 0 }) {
+function AdminSideNav({ onLogout, open, onClose, unreadCount = 0, newSkillCount = 0 }) {
+  // Both badges count the same thing — items nobody has dealt with yet.
+  const badgeFor = (to) => {
+    if (to === '/admin/inbox') return { count: unreadCount, label: 'unread messages' };
+    if (to === '/admin/skills') return { count: newSkillCount, label: 'new skill requests' };
+    return null;
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -33,32 +40,35 @@ function AdminSideNav({ onLogout, open, onClose, unreadCount = 0 }) {
         </div>
 
         <nav className="flex-1 mt-4 space-y-1">
-          {adminNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `px-6 py-3 flex items-center gap-3 transition-colors duration-200 no-underline ${
-                  isActive
-                    ? 'text-on-primary bg-primary border-l-4 border-tertiary-fixed-dim'
-                    : 'text-on-primary-container hover:text-on-primary hover:bg-primary/50'
-                }`
-              }
-            >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span className="font-label-md text-label-md">{item.label}</span>
-              {item.to === '/admin/inbox' && unreadCount > 0 && (
-                <span
-                  className="ml-auto mr-4 min-w-[22px] px-1.5 py-0.5 rounded-full bg-tertiary-fixed-dim text-tertiary-container text-label-sm font-bold text-center"
-                  aria-label={`${unreadCount} unread messages`}
-                >
-                  {unreadCount}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {adminNav.map((item) => {
+            const badge = badgeFor(item.to);
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `px-6 py-3 flex items-center gap-3 transition-colors duration-200 no-underline ${
+                    isActive
+                      ? 'text-on-primary bg-primary border-l-4 border-tertiary-fixed-dim'
+                      : 'text-on-primary-container hover:text-on-primary hover:bg-primary/50'
+                  }`
+                }
+              >
+                <span className="material-symbols-outlined">{item.icon}</span>
+                <span className="font-label-md text-label-md">{item.label}</span>
+                {badge && badge.count > 0 && (
+                  <span
+                    className="ml-auto mr-4 min-w-[22px] px-1.5 py-0.5 rounded-full bg-tertiary-fixed-dim text-tertiary-container text-label-sm font-bold text-center"
+                    aria-label={`${badge.count} ${badge.label}`}
+                  >
+                    {badge.count}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="p-6 space-y-4">

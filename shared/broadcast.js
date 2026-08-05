@@ -23,6 +23,10 @@ const AUDIENCES = {
     label: 'Payment pending review',
     match: (m) => m.payment_status === 'pending_review',
   },
+  unpaid: {
+    label: 'Fee unpaid (pay later)',
+    match: (m) => m.payment_status === 'pending_payment',
+  },
   verified: {
     label: 'Verified email addresses',
     match: (m) => !!m.email_verified,

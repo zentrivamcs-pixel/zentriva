@@ -3,6 +3,7 @@ import { useMemberAuth } from './MemberAuthContext';
 import { memberApi } from '../shared/api';
 import { parseDbDate, formatShortDate, paymentRowStatus } from './memberView';
 import { SUPPORT_EMAIL } from '../shared/contact';
+import { BANK_TRANSFER_DETAILS } from '../shared/paymentConfig';
 
 const naira = (kobo) => `₦${((kobo || 0) / 100).toLocaleString()}`;
 
@@ -32,6 +33,48 @@ function BillingPage() {
           Your membership plan, renewal date, and payment history.
         </p>
       </div>
+
+      {/* Outstanding registration fee — shown to members who registered with
+          "pay later". This is the page the portal points them at, so it has
+          to say exactly how to settle, not just that something is owed. */}
+      {view.feeOutstanding && (
+        <section className="mb-gutter bg-error-container text-on-error-container rounded-xl p-6 md:p-8">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="material-symbols-outlined">schedule</span>
+            <div>
+              <h3 className="font-headline-md text-headline-md">
+                Registration fee outstanding — ₦{view.tierFeeNaira.toLocaleString()}
+              </h3>
+              <p className="font-body-md text-body-md opacity-90 mt-1">
+                You chose to pay later when you registered. Transfer the fee to
+                the cooperative account below, then send your receipt to{' '}
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="underline text-on-error-container">
+                  {SUPPORT_EMAIL}
+                </a>{' '}
+                quoting your membership ID. An admin marks your payment as
+                received and this notice disappears.
+              </p>
+            </div>
+          </div>
+          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-label-md text-label-md">
+            <div className="p-4 bg-white/10 rounded-lg">
+              <dt className="opacity-80">Bank</dt>
+              <dd className="font-bold mt-1">{BANK_TRANSFER_DETAILS.bankName}</dd>
+            </div>
+            <div className="p-4 bg-white/10 rounded-lg">
+              <dt className="opacity-80">Account Number</dt>
+              <dd className="font-bold mt-1 font-mono">{BANK_TRANSFER_DETAILS.accountNumber}</dd>
+            </div>
+            <div className="p-4 bg-white/10 rounded-lg">
+              <dt className="opacity-80">Account Name</dt>
+              <dd className="font-bold mt-1">{BANK_TRANSFER_DETAILS.accountName}</dd>
+            </div>
+          </dl>
+          <p className="font-label-sm text-label-sm opacity-80 mt-4">
+            Reference: <span className="font-mono">{view.membershipId}</span>
+          </p>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
         {/* Plan / renewal card */}

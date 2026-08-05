@@ -303,7 +303,8 @@ class ConflictError extends Error {
 // no payment row is wanted). `passwordHash` (already hashed — never a
 // plaintext password) activates the member's portal account at registration
 // time; when null the member can still activate later via the claim flow.
-// `paymentMeta` is { method: 'paystack'|'bank_transfer', status: 'paid'|'pending_review', proofUrl }.
+// `paymentMeta` is { method: 'paystack'|'bank_transfer'|'pay_later',
+// status: 'paid'|'pending_review'|'pending_payment', proofUrl }.
 async function createMember(db, body, paymentTx, passwordHash, paymentMeta) {
   const tx = await db.transaction('write');
   try {
@@ -548,9 +549,16 @@ async function setPaymentStatus(db, id, status) {
 }
 
 // A member's payment_status and the status on their payments row use
-// different vocabularies: the member record says 'pending_review', the
-// payments ledger (shared with Paystack's own values) says 'pending'.
-const PAYMENT_ROW_STATUS = { paid: 'paid', rejected: 'rejected', pending_review: 'pending' };
+// different vocabularies: the member record distinguishes 'pending_review'
+// (proof uploaded, awaiting an admin) from 'pending_payment' (pay later — no
+// money sent yet), while the payments ledger (shared with Paystack's own
+// values) calls both simply 'pending'.
+const PAYMENT_ROW_STATUS = {
+  paid: 'paid',
+  rejected: 'rejected',
+  pending_review: 'pending',
+  pending_payment: 'pending',
+};
 
 // Admin edit of a member's payment details — status, method, and reference.
 // Deliberately separate from updateMember (payment columns are excluded from

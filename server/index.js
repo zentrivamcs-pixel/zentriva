@@ -10,9 +10,10 @@ const crypto = require('crypto');
 const { getDb, isDatabaseUnavailable, isDatabaseAuthRejected } = require('../shared/db');
 const repo = require('../shared/membersRepo');
 const inboxRepo = require('../shared/inboxRepo');
+const skillsRepo = require('../shared/skillsRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
-const { validateRegistration, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
+const { validateRegistration, validateSkillApplication, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
 const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail, sendBroadcast } = require('../shared/email');
 const { verifySvixSignature } = require('../shared/webhookAuth');
 const { DEFAULT_AUDIENCE, MAX_RECIPIENTS, isValidAudience, selectRecipients } = require('../shared/broadcast');
@@ -28,7 +29,9 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const db = getDb();
-const ready = Promise.all([repo.ensureSchema(db), inboxRepo.ensureSchema(db)]);
+const ready = Promise.all([
+  repo.ensureSchema(db), inboxRepo.ensureSchema(db), skillsRepo.ensureSchema(db),
+]);
 
 // Dev server is only ever called by the CRA dev client.
 app.use(cors({ origin: ['http://localhost:3000', 'http://127.0.0.1:3000'] }));
@@ -337,13 +340,27 @@ app.post('/api/members', wrap(async (req, res) => {
     passwordHash = auth.hashPassword(String(body.password));
   }
 
-  // Two ways to pay: a verified Paystack charge (member logs in right away),
-  // or a bank transfer with an uploaded proof image (account is created but
-  // login is gated until an admin approves the proof from the dashboard).
+  // Three ways to settle the registration fee (mirrors api/members/index.js):
+  //   paystack      — verified charge; the member can log in right away.
+  //   bank_transfer — proof image uploaded; login is gated until an admin
+  //                   approves the proof from the dashboard.
+  //   pay_later     — nothing paid yet; the member can use the portal but
+  //                   carries a "Pending Payment" tag until it's settled.
   const isBankTransfer = body.payment_method === 'bank_transfer';
+  const isPayLater = body.payment_method === 'pay_later';
   let tx;
   let paymentMeta;
-  if (isBankTransfer) {
+  if (isPayLater) {
+    tx = {
+      reference: value.payment_reference,
+      amount: getTier(value.membership_tier).priceNaira * 100,
+      currency: 'NGN',
+      status: 'pending',
+      channel: 'pay_later',
+      paid_at: null,
+    };
+    paymentMeta = { method: 'pay_later', status: 'pending_payment', proofUrl: null };
+  } else if (isBankTransfer) {
     const proofUrl = cleanUrl(body.payment_proof_url);
     if (!proofUrl) {
       return res.status(400).json({ error: 'A payment proof image is required for bank transfer registrations' });
@@ -459,6 +476,45 @@ app.post('/api/members/:id/payment', requireAdmin, wrap(async (req, res) => {
     await sendPaymentRejectedEmail(member);
   }
   res.json(repo.sanitizeMember(member));
+}));
+
+// --- Skill acquisition applications ------------------------------------------------
+
+// Mirrors api/skills.js. POST is public (the "Learn a Skill" module on the
+// registration page); everything else is admin-only.
+app.post('/api/skills', wrap(async (req, res) => {
+  const { value, errors } = validateSkillApplication(req.body || {});
+  if (errors.length > 0) {
+    return res.status(400).json({ error: `Invalid application: ${errors.join('; ')}` });
+  }
+  const { created, application } = await skillsRepo.createSkillApplication(db, value);
+  res.status(created ? 201 : 200).json({ ok: true, duplicate: !created, application });
+}));
+
+app.get('/api/skills', requireAdmin, wrap(async (req, res) => {
+  res.json(await skillsRepo.listSkillApplications(db));
+}));
+
+app.patch('/api/skills', requireAdmin, wrap(async (req, res) => {
+  const id = Number(req.query.id);
+  const { status } = req.body || {};
+  if (!id) return res.status(400).json({ error: 'An application id is required' });
+  if (!skillsRepo.APPLICATION_STATUSES.includes(status)) {
+    return res.status(400).json({
+      error: `status must be one of: ${skillsRepo.APPLICATION_STATUSES.join(', ')}`,
+    });
+  }
+  const updated = await skillsRepo.setSkillApplicationStatus(db, id, status);
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+}));
+
+app.delete('/api/skills', requireAdmin, wrap(async (req, res) => {
+  const id = Number(req.query.id);
+  if (!id) return res.status(400).json({ error: 'An application id is required' });
+  const removed = await skillsRepo.deleteSkillApplication(db, id);
+  if (!removed) return res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
 }));
 
 // --- Inbound email (Resend "Inbound") ---------------------------------------------
@@ -615,6 +671,16 @@ const UPLOAD_ALLOWED_PREFIXES = ['passports/', 'payment-proofs/'];
 const UPLOAD_ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
+const UPLOAD_TICKET_TTL = 10 * 60; // seconds
+
+// Mirrors api/uploads.js — see the comment there for why the token request
+// is gated on a signed ticket rather than a login. The CORS middleware above
+// already restricts Origin for this dev server, so only the ticket is
+// re-checked here.
+app.get('/api/uploads', (req, res) => {
+  res.json({ ticket: auth.signToken({ role: 'upload' }, UPLOAD_TICKET_TTL) });
+});
+
 // Issues short-lived client tokens for direct-to-Blob uploads (passport
 // photos, payment proof). The file itself never passes through this server.
 app.post('/api/uploads', async (req, res) => {
@@ -622,7 +688,11 @@ app.post('/api/uploads', async (req, res) => {
     const jsonResponse = await handleUpload({
       body: req.body,
       request: req,
-      onBeforeGenerateToken: async (pathname) => {
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        const ticket = auth.verifyToken(typeof clientPayload === 'string' ? clientPayload : '');
+        if (!ticket || ticket.role !== 'upload') {
+          throw new Error('This upload link has expired — please reload the page and try again');
+        }
         if (!UPLOAD_ALLOWED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
           throw new Error('Uploads are only allowed under passports/ or payment-proofs/');
         }

@@ -130,6 +130,16 @@ function renderRoute(template, route) {
   html = setMeta(html, 'name', 'twitter:title', route.title);
   html = setMeta(html, 'name', 'twitter:description', route.description);
   if (route.keywords) html = setMeta(html, 'name', 'keywords', route.keywords);
+  // A route can be public and served statically but still not want to be
+  // indexed — /register/full covers the same "join Zentriva" intent as
+  // /register, and two pages competing for it splits the ranking of both.
+  // This is deliberately not a robots.txt Disallow: a blocked URL can still
+  // be indexed from inbound links, precisely because the crawler is never
+  // allowed to fetch the page and read this tag.
+  // The exact string src/shared/seo.js writes at runtime for a noindex route,
+  // so the tag a crawler reads before the bundle runs and the one it reads
+  // after can't disagree.
+  if (route.noindex) html = setMeta(html, 'name', 'robots', 'noindex, nofollow');
 
   html = setCanonical(html, canonical);
 
@@ -141,7 +151,9 @@ function renderRoute(template, route) {
 
 function sitemap() {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = seo.routes.map((route) => {
+  // A sitemap is a list of pages asking to be indexed, so a noindex route
+  // has no business being in it — listing one is a direct contradiction.
+  const urls = seo.routes.filter((route) => !route.noindex).map((route) => {
     const loc = route.path === '/' ? `${SITE_URL}/` : abs(route.path);
     return [
       '  <url>',

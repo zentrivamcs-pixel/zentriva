@@ -49,8 +49,11 @@ function ProfileInfo() {
     return Math.round((filled / EDITABLE_FIELDS.length) * 100);
   }, [member]);
 
+  // "Payment Verified" is only true once the fee is actually settled — a
+  // pay-later member has a payment reference but owes the money, and is shown
+  // the outstanding tag below instead of a green tick that would be a lie.
   const verifications = [
-    member.payment_reference && { key: 'payment', label: 'Payment Verified' },
+    member.payment_status === 'paid' && member.payment_reference && { key: 'payment', label: 'Payment Verified' },
     member.consent && { key: 'consent', label: 'Directory Consent on File' },
     member.has_password && { key: 'account', label: 'Account Activated' },
   ].filter(Boolean);
@@ -174,6 +177,18 @@ function ProfileInfo() {
           <section className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">
             <h4 className="font-label-md text-label-md font-bold text-primary mb-4">Membership Status</h4>
             <div className="space-y-3">
+              {view.paymentTag && (
+                <div className={`flex items-start gap-3 p-3 rounded-lg ${view.paymentTag.className}`}>
+                  <span className="material-symbols-outlined">{view.paymentTag.icon}</span>
+                  <div>
+                    <p className="font-label-sm text-label-sm font-bold">{view.paymentTag.label}</p>
+                    <p className="font-label-sm text-label-sm opacity-90">
+                      {view.paymentTag.detail}
+                      {view.feeOutstanding && ` Outstanding: ₦${view.tierFeeNaira.toLocaleString()}.`}
+                    </p>
+                  </div>
+                </div>
+              )}
               {verifications.map((v) => (
                 <div
                   key={v.key}

@@ -7,10 +7,16 @@ import './App.css';
 // portal, legal pages) loads its own chunk instead of shipping everything —
 // including the admin CMS and PDF tooling — to every visitor.
 const HomePage = lazy(() => import('./home/HomePage'));
+const RegisterPage = lazy(() => import('./register/RegisterPage'));
+// The original long business & professional directory questionnaire. It is
+// no longer the front door (that's RegisterPage) but is kept intact and
+// reachable at /register/full — it collects the directory data the short form
+// deliberately leaves out.
 const FormPage = lazy(() => import('./FormPage'));
 const AdminGate = lazy(() => import('./admin/AdminGate'));
 const AdminOverview = lazy(() => import('./admin/AdminOverview'));
 const AdminMembers = lazy(() => import('./admin/AdminMembers'));
+const AdminSkills = lazy(() => import('./admin/AdminSkills'));
 const AdminInbox = lazy(() => import('./admin/AdminInbox'));
 const AdminBroadcast = lazy(() => import('./admin/AdminBroadcast'));
 const AdminFinances = lazy(() => import('./admin/AdminFinances'));
@@ -42,10 +48,12 @@ function RouteFallback() {
 
 function App() {
   const location = useLocation();
-  // The homepage, member portal, admin CMS, and legal pages ship their own
-  // header/nav, so the plain public nav bar is only needed on the pages that
-  // don't have one (currently just the registration form).
+  // The homepage, registration page, member portal, admin CMS, and legal
+  // pages ship their own header/nav, so the plain public nav bar is only
+  // needed on the pages that don't have one (currently just the long
+  // directory form at /register/full).
   const hasOwnNav = location.pathname === '/'
+    || location.pathname === '/register'
     || location.pathname.startsWith('/member')
     || location.pathname.startsWith('/admin')
     || location.pathname.startsWith('/privacy')
@@ -81,7 +89,8 @@ function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/register" element={<FormPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register/full" element={<FormPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -93,6 +102,7 @@ function App() {
           <Route path="/admin" element={<AdminGate />}>
             <Route index element={<AdminOverview />} />
             <Route path="members" element={<AdminMembers />} />
+            <Route path="skills" element={<AdminSkills />} />
             <Route path="inbox" element={<AdminInbox />} />
             <Route path="broadcast" element={<AdminBroadcast />} />
             <Route path="finances" element={<AdminFinances />} />

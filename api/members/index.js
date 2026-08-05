@@ -35,14 +35,30 @@ module.exports = async (req, res) => {
         passwordHash = auth.hashPassword(String(body.password));
       }
 
-      // Two ways to pay: a verified Paystack charge (member logs in right
-      // away), or a bank transfer with an uploaded proof image (member's
-      // account is created but login is gated until an admin reviews and
-      // approves the proof from the dashboard).
+      // Three ways to settle the registration fee:
+      //   paystack      — verified charge; the member can log in right away.
+      //   bank_transfer — proof image uploaded; the account exists but login
+      //                   is gated until an admin approves the proof.
+      //   pay_later     — nothing paid yet; the member can use the portal but
+      //                   carries a "Pending Payment" tag until it's settled.
       const isBankTransfer = body.payment_method === 'bank_transfer';
+      const isPayLater = body.payment_method === 'pay_later';
       let tx;
       let paymentMeta;
-      if (isBankTransfer) {
+      if (isPayLater) {
+        // No money has moved, so the ledger row is an open invoice: it exists
+        // so the fee shows up in the member's billing history and in the
+        // admin's outstanding dues, and flips to paid on settlement.
+        tx = {
+          reference: value.payment_reference,
+          amount: getTier(value.membership_tier).priceNaira * 100,
+          currency: 'NGN',
+          status: 'pending',
+          channel: 'pay_later',
+          paid_at: null,
+        };
+        paymentMeta = { method: 'pay_later', status: 'pending_payment', proofUrl: null };
+      } else if (isBankTransfer) {
         const proofUrl = cleanUrl(body.payment_proof_url);
         if (!proofUrl) {
           return res.status(400).json({ error: 'A payment proof image is required for bank transfer registrations' });

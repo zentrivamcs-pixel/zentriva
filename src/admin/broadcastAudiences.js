@@ -7,6 +7,7 @@ export const BROADCAST_AUDIENCES = [
   { key: 'all', label: 'All members', hint: 'Everyone on the register with an email address.' },
   { key: 'paid', label: 'Paid members', hint: 'Registration fee confirmed.' },
   { key: 'pending', label: 'Payment pending review', hint: 'Bank transfer proof not yet approved.' },
+  { key: 'unpaid', label: 'Fee unpaid (pay later)', hint: 'Chose to pay later and still owe the registration fee.' },
   { key: 'verified', label: 'Verified email addresses', hint: 'Members who confirmed their email.' },
   { key: 'unverified', label: 'Unverified email addresses', hint: "Haven't clicked their verification link yet." },
 ];
@@ -15,6 +16,7 @@ const MATCHERS = {
   all: () => true,
   paid: (m) => m.payment_status === 'paid',
   pending: (m) => m.payment_status === 'pending_review',
+  unpaid: (m) => m.payment_status === 'pending_payment',
   verified: (m) => !!m.email_verified,
   unverified: (m) => !m.email_verified,
 };

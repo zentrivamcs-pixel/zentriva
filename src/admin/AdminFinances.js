@@ -6,6 +6,10 @@ import { CHART_COLORS } from './AdminPieChart';
 
 const nairaFmt = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 
+// Money the cooperative is owed: a transfer waiting to be verified, and a
+// "pay later" registration where nothing has been sent yet.
+const OUTSTANDING_STATUSES = ['pending_review', 'pending_payment'];
+
 const tierLabel = (key) => getTier(key).name;
 
 const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
@@ -80,6 +84,7 @@ function AdminFinances() {
     let totalPending = 0;
     let paidCount = 0;
     let pendingCount = 0;
+    let unpaidCount = 0;
     let rejectedCount = 0;
     const byTier = {};
 
@@ -95,12 +100,18 @@ function AdminFinances() {
       } else if (m.payment_status === 'pending_review') {
         totalPending += price;
         pendingCount += 1;
+      } else if (m.payment_status === 'pending_payment') {
+        // Money owed but not yet sent ("pay later") is outstanding dues just
+        // as much as a transfer waiting to be verified — both belong in the
+        // same figure, or the total understates what the cooperative is owed.
+        totalPending += price;
+        unpaidCount += 1;
       } else if (m.payment_status === 'rejected') {
         rejectedCount += 1;
       }
     });
 
-    return { totalPaid, totalPending, paidCount, pendingCount, rejectedCount, byTier };
+    return { totalPaid, totalPending, paidCount, pendingCount, unpaidCount, rejectedCount, byTier };
   }, [members]);
 
   const growth = useMemo(() => monthlyContributions(members, 6), [members]);
@@ -115,11 +126,12 @@ function AdminFinances() {
   const paymentMethods = useMemo(() => ({
     paystack: countWhere(members, 'payment_method', 'paystack'),
     bankTransfer: countWhere(members, 'payment_method', 'bank_transfer'),
+    payLater: countWhere(members, 'payment_method', 'pay_later'),
   }), [members]);
 
   const outstandingByTier = useMemo(() => {
     const groups = {};
-    members.filter((m) => m.payment_status === 'pending_review').forEach((m) => {
+    members.filter((m) => OUTSTANDING_STATUSES.includes(m.payment_status)).forEach((m) => {
       const key = m.membership_tier || 'standard';
       groups[key] = groups[key] || { members: [], total: 0 };
       groups[key].members.push(m);
@@ -138,7 +150,7 @@ function AdminFinances() {
     const emails = group.members.map((m) => m.email).filter(Boolean).join(',');
     const subject = encodeURIComponent('Zentriva Cooperative — Outstanding Membership Dues');
     const body = encodeURIComponent(
-      'Hello,\n\nOur records show your membership payment is still pending review. ' +
+      'Hello,\n\nOur records show your membership registration fee is still outstanding. ' +
       'Please complete your payment or reach out if you have already paid.\n\nZentriva Admin'
     );
     window.location.href = `mailto:?bcc=${emails}&subject=${subject}&body=${body}`;
@@ -183,8 +195,8 @@ function AdminFinances() {
           iconColor="text-on-tertiary-fixed-variant"
           label="Outstanding Dues"
           value={nairaFmt(financials.totalPending)}
-          subtext={`${financials.pendingCount} pending review${financials.rejectedCount ? ` · ${financials.rejectedCount} rejected` : ''}`}
-          to="/admin/transactions?status=pending_review"
+          subtext={`${financials.pendingCount} pending review · ${financials.unpaidCount} unpaid${financials.rejectedCount ? ` · ${financials.rejectedCount} rejected` : ''}`}
+          to="/admin/transactions"
         />
         <KpiCard
           icon="verified"
@@ -271,20 +283,27 @@ function AdminFinances() {
         </div>
       </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-gutter mt-gutter">
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-gutter mt-gutter">
         <MiniStat
           icon="credit_card"
           label="Paid via Paystack"
           value={paymentMethods.paystack}
-          total={financials.paidCount + financials.pendingCount}
+          total={financials.paidCount + financials.pendingCount + financials.unpaidCount}
           to={buildMembersFilterUrl('payment_method', 'paystack')}
         />
         <MiniStat
           icon="account_balance"
           label="Paid via Bank Transfer"
           value={paymentMethods.bankTransfer}
-          total={financials.paidCount + financials.pendingCount}
+          total={financials.paidCount + financials.pendingCount + financials.unpaidCount}
           to={buildMembersFilterUrl('payment_method', 'bank_transfer')}
+        />
+        <MiniStat
+          icon="schedule"
+          label="Registered to Pay Later"
+          value={paymentMethods.payLater}
+          total={financials.paidCount + financials.pendingCount + financials.unpaidCount}
+          to={buildMembersFilterUrl('payment_method', 'pay_later')}
         />
       </section>
 

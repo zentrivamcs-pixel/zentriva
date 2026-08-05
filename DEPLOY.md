@@ -8,7 +8,12 @@ The React app is served by Vercel as a static site. The `/api/members` API runs 
 | --- | --- |
 | `GET /api/members`, `POST /api/members` | [api/members/index.js](api/members/index.js) |
 | `PUT /api/members/:id`, `DELETE /api/members/:id` | [api/members/[id].js](api/members/[id].js) |
+| `GET/POST/PATCH/DELETE /api/skills` (Learn a Skill applications) | [api/skills.js](api/skills.js) |
 | shared DB helpers (not a route — `_` prefix) | [api/_lib.js](api/_lib.js) |
+
+> A Hobby deployment is capped at **12 serverless functions**; `api/` currently
+> holds 11. Adding a feature usually means folding its verbs into one file (as
+> `api/skills.js` does) rather than adding a file per route.
 
 > Local development is unchanged: `npm run dev` still runs the Express + local SQLite
 > server. Turso is only used for the deployed site.
@@ -52,8 +57,8 @@ Vercel deploys from a Git repo. Create a repo and push the `ctca-business-form` 
 | --- | --- | --- |
 | `TURSO_DATABASE_URL` | your Turso database URL (`libsql://…`) | runtime |
 | `TURSO_AUTH_TOKEN` | your Turso auth token | runtime |
-| `ADMIN_PASSWORD` | the password for `/admin` | runtime |
-| `SESSION_SECRET` | long random string signing admin/member tokens | runtime |
+| `ADMIN_PASSWORD` | the password for `/admin`. One password guards every member's personal data — use a long random value, not a memorable phrase: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"` | runtime |
+| `SESSION_SECRET` | **REQUIRED.** Long random string signing admin/member tokens: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. There is no fallback — if this is unset, every login returns 500. Anyone holding it can mint a valid admin session without the password, so treat it like a private key and never reuse another service's key here. Changing it logs everyone out once, which is the intended effect of rotating it | runtime |
 | `PAYSTACK_SECRET_KEY` | Paystack secret key (server-side payment verification) | runtime |
 | `REACT_APP_PAYSTACK_PUBLIC_KEY` | Paystack public key | build |
 | `REACT_APP_WHATSAPP_GROUP_URL` | your WhatsApp group invite link | build |
@@ -118,6 +123,13 @@ titles and descriptions there, nowhere else. The script then:
   JavaScript runs, instead of one shared shell for the whole site;
 - generates **sitemap.xml** and **robots.txt** (which disallows `/admin` and
   `/member` and points at the sitemap).
+
+A route in `seo.json` can set `"noindex": true` (as `/register/full`, the long
+directory form, does). It still gets a static file — so the page is served and
+crawlable — but that file carries `noindex, nofollow` and the URL is left out of
+the sitemap. This is deliberately not a `robots.txt` Disallow: a blocked URL can
+still be indexed from inbound links, precisely because the crawler is never
+allowed to fetch the page and read the tag.
 
 `src/shared/seo.js` applies the same metadata during client-side navigation and
 is what puts `noindex` on the admin, member portal, 404, and token-link pages.

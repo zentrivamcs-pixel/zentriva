@@ -100,7 +100,15 @@ const initialFormData = {
 };
 
 function FormPage() {
-  useSeo(routeMeta('/register'));
+  // The long directory questionnaire lives at /register/full, behind the
+  // short form at /register. It carries a noindex on purpose: it covers the
+  // same "join Zentriva" intent as /register, and two indexed pages competing
+  // for it would split the ranking of both.
+  useSeo({
+    ...routeMeta('/register'),
+    title: 'Business & Professional Directory Form | Zentriva',
+    noindex: true,
+  });
 
   // Flat registration fee — every new signup is the 'standard' tier
   // (already priced at ₦5,000), so there's no tier choice on the form.

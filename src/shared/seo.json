@@ -27,12 +27,21 @@
     {
       "path": "/register",
       "file": "register.html",
-      "title": "Join Zentriva | Membership Registration",
-      "description": "Register for Zentriva Multipurpose Cooperative Society. One flat registration fee covers training programs, the member network, and support for member ventures.",
-      "keywords": "join cooperative society Nigeria, cooperative membership registration, Zentriva membership",
+      "title": "Join Zentriva | Membership & Skills Registration",
+      "description": "Become a member of Zentriva Multipurpose Cooperative Society or apply for skills training. Pay your registration fee now by card or transfer, or register now and pay later.",
+      "keywords": "join cooperative society Nigeria, cooperative membership registration, skills training application Nigeria, Zentriva membership",
       "schema": ["organization"],
       "changefreq": "monthly",
       "priority": "0.9"
+    },
+    {
+      "path": "/register/full",
+      "file": "register-full.html",
+      "title": "Business & Professional Directory Form | Zentriva",
+      "description": "The full Zentriva Multipurpose Cooperative Society registration form, collecting business, professional, and skills details for the member directory.",
+      "noindex": true,
+      "changefreq": "monthly",
+      "priority": "0.4"
     },
     {
       "path": "/contact",

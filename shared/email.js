@@ -105,9 +105,14 @@ function layout(title, bodyHtml, footerHtml = DEFAULT_FOOTER) {
 
 // Membership confirmation, sent fire-and-forget after a registration commits.
 // (Paystack sends the payment receipt itself — this is the membership side.)
-// Bank-transfer registrations start life as `payment_status: 'pending_review'`
-// — the member can't log in yet, so the email must say that plainly rather
-// than inviting them to a portal that will reject them.
+// The registration fee can be in three states by the time this sends, and
+// each needs different words:
+//   'pending_review'  — bank transfer proof uploaded; the member can't log in
+//                       yet, so don't invite them to a portal that will
+//                       reject them.
+//   'pending_payment' — "pay later"; the member CAN log in, but owes the fee
+//                       and carries a Pending Payment tag until it's settled.
+//   anything else     — paid.
 function sendRegistrationEmail(member) {
   const { baseUrl } = getConfig();
   const row = (label, value) =>
@@ -116,6 +121,36 @@ function sendRegistrationEmail(member) {
     ? member.membership_tier[0].toUpperCase() + member.membership_tier.slice(1)
     : 'Standard';
   const pending = member.payment_status === 'pending_review';
+  const unpaid = member.payment_status === 'pending_payment';
+
+  if (unpaid) {
+    return sendEmail({
+      to: member.email,
+      subject: 'Zentriva registration received — your fee is outstanding',
+      text:
+        `Thanks for registering, ${member.full_name}!\n\n` +
+        `You chose to pay your registration fee later, so your membership is marked "Pending Payment" until we receive it.\n\n` +
+        `Membership ID: ${member.membership_id}\nTier: ${tier}\nReference: ${member.payment_reference}\n\n` +
+        `Verify your email address, then log in to the member portal to see your outstanding fee: ${baseUrl}/member\n`,
+      html: layout('Registration received — fee outstanding', `
+        <p>Thanks for registering, <strong>${escapeHtml(member.full_name)}</strong>!</p>
+        <p>You chose to pay your registration fee later, so your membership carries a
+           <strong>Pending Payment</strong> tag until we receive it. Everything else about your
+           account works normally.</p>
+        <table style="border-collapse:collapse;font-size:14px;">
+          ${row('Membership ID', member.membership_id)}
+          ${row('Tier', tier)}
+          ${row('Reference', member.payment_reference)}
+        </table>
+        <p style="margin-top:20px;">
+          <a href="${baseUrl}/member" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
+            Log in to the Member Portal
+          </a>
+        </p>
+        <p style="color:#555;font-size:13px;">Verify your email address first (see the separate verification email), then log in with the password you chose. Your Billing page shows how to settle the fee.</p>
+      `),
+    });
+  }
 
   return sendEmail({
     to: member.email,
@@ -157,18 +192,19 @@ function sendRegistrationEmail(member) {
   });
 }
 
-// Sent when an admin approves a bank-transfer payment — the member's account
-// switches from pending_review to paid and can now log in.
+// Sent when an admin confirms a registration fee — a bank transfer that was
+// pending_review, or a pay-later balance that has now been settled. The
+// wording stays method-neutral because both routes land here.
 function sendPaymentApprovedEmail(member) {
   const { baseUrl } = getConfig();
   return sendEmail({
     to: member.email,
-    subject: 'Zentriva payment approved — you can now log in',
+    subject: 'Zentriva payment confirmed — your membership is active',
     text:
-      `Good news, ${member.full_name}! Your bank transfer payment has been verified and your membership is now active.\n\n` +
+      `Good news, ${member.full_name}! Your registration payment has been confirmed and your membership is now active.\n\n` +
       `Log in to the member portal: ${baseUrl}/member\n`,
-    html: layout('Payment approved ✅', `
-      <p>Good news, <strong>${escapeHtml(member.full_name)}</strong>! Your bank transfer payment has been verified and your membership is now active.</p>
+    html: layout('Payment confirmed ✅', `
+      <p>Good news, <strong>${escapeHtml(member.full_name)}</strong>! Your registration payment has been confirmed and your membership is now active.</p>
       <p style="margin-top:20px;">
         <a href="${baseUrl}/member" style="background:#1F7A4D;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">
           Log in to the Member Portal

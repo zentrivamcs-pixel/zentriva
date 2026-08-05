@@ -3,12 +3,35 @@
 // require it with no extra dependencies.
 const crypto = require('crypto');
 
-// Secret used to sign session tokens. Falls back to the Paystack secret in
-// local dev so the app still runs, but production should set SESSION_SECRET.
+// Secret used to sign session tokens. SESSION_SECRET and nothing else.
+//
+// This used to fall back to PAYSTACK_SECRET_KEY so local dev would run
+// without any extra setup. That convenience welded two unrelated systems
+// together: whoever held the payment key could forge an admin session, and
+// a routine Paystack key rotation would silently invalidate every logged-in
+// session with no failure anyone could trace back to it. Refuse to sign
+// instead — a missing secret should be a loud startup error, not a quiet
+// downgrade to a key that was never meant to authenticate anyone.
+const MIN_SECRET_LENGTH = 32;
+let warnedShortSecret = false;
+
 function getSessionSecret() {
-  const secret = process.env.SESSION_SECRET || process.env.PAYSTACK_SECRET_KEY;
+  const secret = process.env.SESSION_SECRET;
   if (!secret) {
-    throw new Error('SESSION_SECRET is not configured on the server');
+    throw new Error(
+      'SESSION_SECRET is not configured on the server. Generate one with '
+      + '`node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"` '
+      + 'and set it in the deployment environment, then REDEPLOY.'
+    );
+  }
+  // Warn rather than throw: raising the bar must not be able to lock an
+  // operator out of a running deployment mid-rotation.
+  if (secret.length < MIN_SECRET_LENGTH && !warnedShortSecret) {
+    warnedShortSecret = true;
+    console.warn(
+      `SESSION_SECRET is only ${secret.length} characters. Tokens are signed with `
+      + `HMAC-SHA256; use at least ${MIN_SECRET_LENGTH} random characters.`
+    );
   }
   return secret;
 }

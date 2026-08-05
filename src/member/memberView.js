@@ -33,6 +33,36 @@ export function paymentRowStatus(status) {
   return PAYMENT_ROW_STATUS_LABELS[status] || { label: status || 'Unknown', className: 'bg-surface-container text-secondary' };
 }
 
+// A member's own registration-fee state, as shown to them in the portal.
+// 'paid' has no tag — a badge saying "everything is fine" is noise. The other
+// states each mean something the member may need to act on, so each gets a
+// tag, a colour, and a sentence explaining what happens next.
+const PAYMENT_TAGS = {
+  pending_payment: {
+    label: 'Pending Payment',
+    icon: 'schedule',
+    className: 'bg-error-container text-on-error-container',
+    detail:
+      'You chose to pay your registration fee later. Your membership stays provisional until we receive it.',
+  },
+  pending_review: {
+    label: 'Payment Under Review',
+    icon: 'hourglass_top',
+    className: 'bg-tertiary-container text-on-tertiary-container',
+    detail: 'We have your transfer proof — an admin is verifying it.',
+  },
+  rejected: {
+    label: 'Payment Not Verified',
+    icon: 'error',
+    className: 'bg-error-container text-on-error-container',
+    detail: 'We could not verify your payment. Please contact support to complete your registration.',
+  },
+};
+
+export function memberPaymentTag(status) {
+  return PAYMENT_TAGS[status] || null;
+}
+
 // Membership numbers are "ZNTR-<id>-<category>-<year>", e.g.
 // "ZNTR-1042-EXE-2026" (see buildMembershipId in shared/membersRepo.js). The
 // category letters anchor the match so a bare fallback ID like "ZNTR-1042"
@@ -93,6 +123,12 @@ export function buildMemberView(member) {
     tierDescription: TIER_DESCRIPTIONS[tier.key] || TIER_DESCRIPTIONS.standard,
     statusLabel: active ? 'ACTIVE STATUS' : 'RENEWAL DUE',
     active,
+    // Registration-fee state, kept separate from `active` (which is about the
+    // annual renewal date): a member can be inside their year and still owe
+    // the joining fee, which is exactly what "pay later" produces.
+    paymentStatus: member.payment_status || 'paid',
+    feeOutstanding: member.payment_status === 'pending_payment',
+    paymentTag: memberPaymentTag(member.payment_status),
     memberSince: String(created.getFullYear()),
     // Same "MMM D, YYYY" format as nextRenewal (via formatShortDate) and the
     // billing/payment dates elsewhere in the portal — one date format,

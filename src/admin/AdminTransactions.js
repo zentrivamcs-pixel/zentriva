@@ -8,6 +8,7 @@ const nairaFmt = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
 const STATUS_FILTERS = [
   { value: 'all', label: 'All statuses' },
   { value: 'pending_review', label: 'Pending Review' },
+  { value: 'pending_payment', label: 'Pending Payment' },
   { value: 'paid', label: 'Paid' },
   { value: 'rejected', label: 'Rejected' },
 ];
@@ -16,7 +17,13 @@ const METHOD_FILTERS = [
   { value: 'all', label: 'All methods' },
   { value: 'bank_transfer', label: 'Bank Transfer' },
   { value: 'paystack', label: 'Paystack' },
+  { value: 'pay_later', label: 'Pay Later' },
 ];
+
+// Both states need an admin decision before the member's fee is settled:
+// 'pending_review' has proof to check, 'pending_payment' has money still to
+// arrive. Either way the row gets Approve / Reject.
+const AWAITING_DECISION = ['pending_review', 'pending_payment'];
 
 // Every member carries exactly one registration transaction (payment_method
 // / payment_status / payment_reference / payment_proof_url) — there is no
@@ -63,6 +70,16 @@ function AdminTransactions() {
       .reduce((sum, t) => sum + t.amountNaira, 0),
     [transactions]
   );
+  const unpaidCount = useMemo(
+    () => transactions.filter((t) => t.member.payment_status === 'pending_payment').length,
+    [transactions]
+  );
+  const unpaidTotal = useMemo(
+    () => transactions
+      .filter((t) => t.member.payment_status === 'pending_payment')
+      .reduce((sum, t) => sum + t.amountNaira, 0),
+    [transactions]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -104,6 +121,26 @@ function AdminTransactions() {
             className="px-4 py-2 bg-on-tertiary-container text-tertiary-container rounded-lg text-label-sm font-bold hover:opacity-90 transition-opacity"
           >
             Review Now
+          </button>
+        </section>
+      )}
+
+      {unpaidCount > 0 && (
+        <section className="mt-gutter bg-error-container text-on-error-container p-5 rounded-xl border border-outline-variant shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined">schedule</span>
+            <p className="text-body-md">
+              <strong>{unpaidCount}</strong> member{unpaidCount === 1 ? '' : 's'} registered with
+              &ldquo;pay later&rdquo; and still owe{unpaidCount === 1 ? 's' : ''} the fee
+              — <strong>{nairaFmt(unpaidTotal)}</strong> total.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending_payment')}
+            className="px-4 py-2 bg-on-error-container text-error-container rounded-lg text-label-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            Chase Now
           </button>
         </section>
       )}
@@ -166,7 +203,7 @@ function AdminTransactions() {
               ) : (
                 filtered.map(({ member, amountNaira }) => {
                   const status = PAYMENT_STATUS_LABELS[member.payment_status] || PAYMENT_STATUS_LABELS.pending_review;
-                  const isPending = member.payment_status === 'pending_review';
+                  const isPending = AWAITING_DECISION.includes(member.payment_status);
                   return (
                     <tr key={member.id} className="hover:bg-surface-container-low/50 transition-colors">
                       <td className="px-6 py-4">
@@ -209,7 +246,7 @@ function AdminTransactions() {
                                 onClick={() => handlePaymentDecision(member, 'approve')}
                                 className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity"
                               >
-                                Approve
+                                {member.payment_status === 'pending_payment' ? 'Mark Paid' : 'Approve'}
                               </button>
                               <button
                                 type="button"

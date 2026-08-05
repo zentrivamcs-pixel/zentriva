@@ -6,7 +6,11 @@ import {
 
 export function AdminViewModal({ member, onClose, onEdit, onResetAccount, onApprovePayment, onRejectPayment, onEditPayment }) {
   const paymentStatus = PAYMENT_STATUS_LABELS[member.payment_status];
-  const isPending = member.payment_status === 'pending_review';
+  // Both states are awaiting an admin: 'pending_review' has transfer proof to
+  // check, 'pending_payment' ("pay later") has money still to arrive.
+  const isPending = member.payment_status === 'pending_review'
+    || member.payment_status === 'pending_payment';
+  const approveLabel = member.payment_status === 'pending_payment' ? 'Mark Paid' : 'Approve';
   return (
     <div className="fixed inset-0 bg-on-background/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -80,7 +84,7 @@ export function AdminViewModal({ member, onClose, onEdit, onResetAccount, onAppr
                     onClick={onApprovePayment}
                     className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity"
                   >
-                    Approve
+                    {approveLabel}
                   </button>
                   <button
                     type="button"
