@@ -746,6 +746,22 @@
   font-size: 1.25rem;
 }
 
+/* Marks the pay-later option as the one that asks for nothing up front. Warm
+   rather than teal so it reads as a note about the fee, matching the
+   pending-callout below it, instead of blending into the option's own chrome. */
+.register-page .pay-option-badge {
+  margin-left: auto;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #7a5310;
+  background: rgba(200, 140, 20, 0.14);
+  border-radius: 40px;
+  padding: 0.15rem 0.55rem;
+  white-space: nowrap;
+}
+
 .register-page .pay-option-note {
   font-size: 0.76rem;
   color: #33707f;

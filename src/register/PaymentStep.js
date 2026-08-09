@@ -2,27 +2,35 @@ import React, { useState } from 'react';
 import { Icon, PhotoUpload } from './RegisterFields';
 import { BANK_TRANSFER_DETAILS } from '../shared/paymentConfig';
 
-// Review & Pay. Reached only after the membership form validates — no money
+// Review & Confirm. Reached only after the membership form validates — no money
 // moves, and nothing is saved, until a method is chosen here.
 //
-// Three ways to settle the ₦fee:
-//   card          — Paystack; the account is active immediately.
-//   bank transfer — upload proof; an admin approves before login works.
+// Paying is not a condition of joining, so "pay later" leads the list and is
+// selected by default: a member can complete registration with nothing to hand
+// over, and the unpaid fee is carried as a debt that both the member's portal
+// and the admin dashboard show until it is settled. The two pay-now paths
+// follow for anyone who would rather clear it immediately.
+//
 //   pay later     — register now, owe the fee; the account works but carries
 //                   a "Pending Payment" tag until it is settled.
+//   card          — Paystack; the account is active immediately.
+//   bank transfer — upload proof; an admin approves before login works.
 function PaymentStep({
   summary, feeNaira, canPayWithCard, cardDisabledReason, submitting,
   onPayWithCard, onSubmitBankTransfer, onPayLater, onBack,
   bankProof, onBankProofPick,
 }) {
-  const [method, setMethod] = useState(canPayWithCard ? 'paystack' : 'bank_transfer');
+  // Deliberately not conditional on canPayWithCard. Registering without paying
+  // is the path we want to be effortless, so it stays pre-selected whether or
+  // not card payments happen to be switched on.
+  const [method, setMethod] = useState('pay_later');
 
   return (
     <div className="form-module is-panel">
-      <h2><Icon name="receipt_long" /> Review &amp; Pay</h2>
+      <h2><Icon name="receipt_long" /> Review &amp; Confirm</h2>
       <p className="module-intro">
-        Confirm your details, then choose how you'd like to settle the
-        registration fee.
+        Confirm your details below. You can join without paying today — settle
+        the registration fee now if you'd like, or later from your portal.
       </p>
 
       <div className="summary-box">
@@ -43,6 +51,22 @@ function PaymentStep({
       </div>
 
       <div className="pay-options">
+        <button
+          type="button"
+          className={`pay-option ${method === 'pay_later' ? 'is-selected' : ''}`}
+          onClick={() => setMethod('pay_later')}
+          disabled={submitting}
+        >
+          <span className="pay-option-title">
+            <Icon name="schedule" /> Pay later
+            <span className="pay-option-badge">No payment now</span>
+          </span>
+          <span className="pay-option-note">
+            Finish registering without paying. Your profile is tagged
+            <strong> Pending Payment</strong> until we receive the fee.
+          </span>
+        </button>
+
         <button
           type="button"
           className={`pay-option ${method === 'paystack' ? 'is-selected' : ''}`}
@@ -69,20 +93,27 @@ function PaymentStep({
             before your portal login opens.
           </span>
         </button>
-
-        <button
-          type="button"
-          className={`pay-option ${method === 'pay_later' ? 'is-selected' : ''}`}
-          onClick={() => setMethod('pay_later')}
-          disabled={submitting}
-        >
-          <span className="pay-option-title"><Icon name="schedule" /> Pay later</span>
-          <span className="pay-option-note">
-            Register now and settle the fee later. Your profile is tagged
-            <strong> Pending Payment</strong> until we receive it.
-          </span>
-        </button>
       </div>
+
+      {method === 'pay_later' && (
+        <div className="pay-panel">
+          <p className="pending-callout">
+            <Icon name="pending_actions" />
+            <span>
+              Your registration is saved right away and you can use the member
+              portal once you verify your email — but your profile will show a
+              <strong> Pending Payment</strong> tag, and your membership card
+              and directory listing stay provisional until the ₦
+              {feeNaira.toLocaleString()} fee reaches us. Your Billing page in
+              the portal shows how to pay.
+            </span>
+          </p>
+          <button type="button" className="btn-submit" onClick={onPayLater} disabled={submitting}>
+            <Icon name="how_to_reg" />
+            {submitting ? 'Submitting…' : 'Register now, pay later'}
+          </button>
+        </div>
+      )}
 
       {method === 'paystack' && canPayWithCard && (
         <div className="pay-panel">
@@ -125,26 +156,6 @@ function PaymentStep({
           >
             <Icon name="send" />
             {submitting ? 'Submitting…' : "I've made the transfer — Submit for Review"}
-          </button>
-        </div>
-      )}
-
-      {method === 'pay_later' && (
-        <div className="pay-panel">
-          <p className="pending-callout">
-            <Icon name="pending_actions" />
-            <span>
-              Your registration is saved right away and you can use the member
-              portal once you verify your email — but your profile will show a
-              <strong> Pending Payment</strong> tag, and your membership card
-              and directory listing stay provisional until the ₦
-              {feeNaira.toLocaleString()} fee reaches us. Your Billing page in
-              the portal shows how to pay.
-            </span>
-          </p>
-          <button type="button" className="btn-submit" onClick={onPayLater} disabled={submitting}>
-            <Icon name="how_to_reg" />
-            {submitting ? 'Submitting…' : 'Register now, pay later'}
           </button>
         </div>
       )}

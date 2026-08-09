@@ -44,8 +44,9 @@ function RegisterPage() {
   const tier = getTier('standard');
   const feeNaira = tier.priceNaira;
 
-  // 'forms' — the registration form. 'review' — Review & Pay, after the form
-  // validates but before any money changes hands. 'done' — thank you.
+  // 'forms' — the registration form. 'review' — Review & Confirm, after the
+  // form validates but before anything is saved; paying there is optional.
+  // 'done' — thank you.
   const [step, setStep] = useState('forms');
   const [values, setValues] = useState(EMPTY_MEMBER);
   const [submitting, setSubmitting] = useState(false);
@@ -128,8 +129,8 @@ function RegisterPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Validates the membership form and moves to Review & Pay. Nothing is saved
-  // and no money moves here.
+  // Validates the membership form and moves to Review & Confirm. Nothing is
+  // saved and no money moves here.
   const handleContinue = async (e) => {
     e.preventDefault();
     setError('');

@@ -30,7 +30,8 @@ function RegistrationForm({
         <Icon name="payments" />
         <span>
           <strong>₦{feeNaira.toLocaleString()} one-time registration fee.</strong>{' '}
-          Paid once when you join — whether or not you add skill training.
+          Charged once — whether or not you add skill training. You can pay it
+          now or settle it later from your portal.
         </span>
       </div>
 
@@ -204,11 +205,14 @@ function RegistrationForm({
           )}
         </section>
 
+        {/* Not "Continue to Payment": this button charges nothing, and the
+            next step lets you finish without paying at all. The fee is stated
+            in the banner above and again in the review summary, so naming the
+            destination rather than a price keeps the amount visible without
+            implying it is due now. */}
         <button type="submit" className="btn-submit" disabled={submitting}>
           <Icon name="arrow_forward" />
-          {submitting
-            ? 'Please wait…'
-            : `Continue to Payment · ₦${feeNaira.toLocaleString()}`}
+          {submitting ? 'Please wait…' : 'Continue to Review'}
         </button>
       </form>
 

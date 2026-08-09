@@ -18,11 +18,34 @@ const baseProps = {
 
 const renderStep = (props = {}) => render(<PaymentStep {...baseProps} {...props} />);
 
+// The pay-later option and its submit button both contain the words "pay
+// later", and pay later is the default so both are on screen at once —
+// anchoring at the start of the accessible name picks out the option itself.
+const payLaterOption = () => screen.getByRole('button', { name: /^pay later/i });
+
 test('offers all three ways to settle the fee', () => {
   renderStep();
   expect(screen.getByRole('button', { name: /pay now — card/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /pay now — bank transfer/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /pay later/i })).toBeInTheDocument();
+  expect(payLaterOption()).toBeInTheDocument();
+});
+
+// Joining does not require paying, so the option that asks for nothing up
+// front is the one already chosen when the step opens — a member who just
+// keeps going registers without paying rather than having to find the option.
+test('pay later is selected by default', () => {
+  renderStep();
+  expect(payLaterOption()).toHaveClass('is-selected');
+  expect(screen.getByRole('button', { name: /register now, pay later/i })).toBeInTheDocument();
+});
+
+// Selecting a pay-now method must actually leave the default behind, or the
+// member would be shown a card/transfer panel while pay later stayed active.
+test('choosing a pay-now method deselects pay later', () => {
+  renderStep();
+  userEvent.click(screen.getByRole('button', { name: /pay now — bank transfer/i }));
+  expect(payLaterOption()).not.toHaveClass('is-selected');
+  expect(screen.queryByRole('button', { name: /register now, pay later/i })).not.toBeInTheDocument();
 });
 
 // Paystack is switched off in paymentConfig while card payments are on hold —
@@ -37,7 +60,7 @@ test('choosing pay later explains the pending tag before submitting', () => {
   const onPayLater = jest.fn();
   renderStep({ onPayLater });
 
-  userEvent.click(screen.getByRole('button', { name: /pay later/i }));
+  userEvent.click(payLaterOption());
   // The consequence is spelled out before the member commits, not after.
   expect(screen.getByText(/membership card and directory listing stay provisional/i))
     .toBeInTheDocument();
