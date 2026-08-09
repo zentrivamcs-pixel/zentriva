@@ -175,6 +175,20 @@ async function ensureSchema(db) {
     console.warn('Could not create unique email index (duplicate emails in data?):', err.message);
   }
 
+  // Membership numbers must identify exactly one member — an admin can now
+  // set them by hand (setMembershipId), and a duplicate would put two people
+  // behind the same card and QR payload. Guarded like the email index: a
+  // legacy database holding duplicates keeps working, with setMembershipId's
+  // own check still refusing new collisions.
+  try {
+    await db.execute(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_members_membership_id
+      ON members(upper(membership_id)) WHERE membership_id IS NOT NULL
+    `);
+  } catch (err) {
+    console.warn('Could not create unique membership_id index (duplicates in data?):', err.message);
+  }
+
   // The Billing page filters payments by member.
   await db.execute(
     'CREATE INDEX IF NOT EXISTS idx_payments_member ON payments(member_id)'
@@ -266,9 +280,29 @@ function buildMembershipId(id, membershipCategory, createdAt) {
 
 // --- Members ---------------------------------------------------------------
 
+// Assigns membership numbers to any rows registered before membership IDs
+// existed. getMemberWithMembershipId does the same thing for one member on
+// their way into the portal; this covers the whole table so the admin list,
+// the directory PDF, and an admin-issued ID card all show the same canonical
+// number the member sees. Converges to zero rows, so the extra SELECT costs
+// nothing once every row has an ID.
+async function backfillMembershipIds(db) {
+  const missing = await db.execute(
+    "SELECT id, membership_category, created_at FROM members WHERE membership_id IS NULL OR membership_id = ''"
+  );
+  for (const row of missing.rows) {
+    await db.execute({
+      sql: 'UPDATE members SET membership_id = ? WHERE id = ?',
+      args: [buildMembershipId(row.id, row.membership_category, row.created_at), row.id],
+    });
+  }
+  return missing.rows.length;
+}
+
 // Rows leave the data layer sanitized: password_hash never reaches any
 // client — not even the admin UI, which only needs has_password.
 async function listMembers(db) {
+  await backfillMembershipIds(db);
   const result = await db.execute('SELECT * FROM members ORDER BY created_at DESC');
   return result.rows.map(sanitizeMember);
 }
@@ -292,7 +326,7 @@ class ConflictError extends Error {
   constructor(code, message) {
     super(message);
     this.name = 'ConflictError';
-    this.code = code; // 'DUPLICATE_EMAIL' | 'DUPLICATE_REFERENCE'
+    this.code = code; // 'DUPLICATE_EMAIL' | 'DUPLICATE_REFERENCE' | 'DUPLICATE_MEMBERSHIP_ID'
   }
 }
 
@@ -382,10 +416,37 @@ async function createMember(db, body, paymentTx, passwordHash, paymentMeta) {
   }
 }
 
-// Admin full-row update.
+// Admin rename of a member's membership number. Kept out of COLUMNS on
+// purpose: the generic admin update writes every column it knows about, so a
+// payload that happened not to carry a number would blank it — and this one
+// string is what the member's card, the directory PDF, and the QR payload all
+// identify them by. `membershipId` must already be cleaned
+// (cleanMembershipId in shared/validation.js).
+async function setMembershipId(db, id, membershipId) {
+  const clash = await db.execute({
+    sql: 'SELECT 1 FROM members WHERE upper(membership_id) = upper(?) AND id != ? LIMIT 1',
+    args: [membershipId, id],
+  });
+  if (clash.rows.length > 0) {
+    throw new ConflictError('DUPLICATE_MEMBERSHIP_ID', 'Another member already has that membership ID');
+  }
+  await db.execute({
+    sql: 'UPDATE members SET membership_id = ? WHERE id = ?',
+    args: [membershipId, id],
+  });
+}
+
+// Admin full-row update. `body.membership_id`, when present, is applied
+// through setMembershipId rather than with the rest of the columns — and
+// applied FIRST, so a rename that collides with another member rejects the
+// whole edit instead of leaving the other fields saved behind a failure the
+// admin was told about.
 async function updateMember(db, id, body) {
   const existing = await getMember(db, id);
   if (!existing) return null;
+  if (body.membership_id) {
+    await setMembershipId(db, id, body.membership_id);
+  }
   const assignments = COLUMNS.map((col) => `${col} = ?`).join(', ');
   await db.execute({
     sql: `UPDATE members SET ${assignments} WHERE id = ?`,
@@ -666,6 +727,7 @@ module.exports = {
   ARRAY_FIELDS, COLUMNS, PAYMENT_COLUMNS, PROFILE_EDITABLE_FIELDS, DIRECTORY_FIELDS,
   ensureSchema, deserialize, sanitizeMember, toDirectoryEntry, toArgs,
   buildMembershipId, ConflictError,
+  backfillMembershipIds, setMembershipId,
   listMembers, getMember, emailExists, createMember, updateMember, deleteMember,
   findByEmailWithPassword, findByEmailAndReference, setPassword, clearPassword,
   createPasswordReset, consumePasswordReset,

@@ -77,6 +77,14 @@ export function membershipIdYear(membershipId) {
   return match ? Number(match[1]) : null;
 }
 
+// A member's membership number. Rows created before membership_id existed
+// are backfilled with a real number server-side (see membersRepo.js), but a
+// record can still reach the UI without one — a bare "ZNTR-<n>" keeps the
+// card and the admin table showing something stable rather than a blank.
+export function membershipNumber(member) {
+  return member.membership_id || `ZNTR-${1000 + Number(member.id || 0)}`;
+}
+
 const TIER_DESCRIPTIONS = {
   standard:
     'You are on the Standard tier with access to core training programs, the digital member network, and email support.',
@@ -93,7 +101,7 @@ export function buildMemberView(member) {
   const tier = getTier(member.membership_tier);
   const active = renewal.getTime() > Date.now();
   const fullName = member.full_name || 'Zentriva Member';
-  const membershipId = member.membership_id || `ZNTR-${1000 + Number(member.id || 0)}`;
+  const membershipId = membershipNumber(member);
 
   // Cross-field check: the year embedded in the membership number must
   // reconcile with the registration year that drives "Member Since" and

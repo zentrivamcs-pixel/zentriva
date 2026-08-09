@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { exportDirectoryPdf } from './exportDirectoryPdf';
+import { exportMembersCsv } from './exportMembersCsv';
 import { tallyScalar, tallyArray, searchableText, ARRAY_FIELDS, FIELD_LABELS, PAYMENT_STATUS_LABELS } from './adminHelpers';
 
 function AdminMembers() {
-  const { members, loading, setViewing, openEdit, handleDelete } = useOutletContext();
+  const { members, loading, setViewing, openEdit, handleDelete, openIdCard } = useOutletContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -144,6 +145,14 @@ function AdminMembers() {
           <div className="flex-1" />
           <button
             type="button"
+            onClick={() => exportMembersCsv(filteredMembers)}
+            className="px-4 py-2 border border-outline-variant text-primary rounded-lg text-label-md flex items-center gap-2 hover:bg-surface-container-low transition-colors bg-transparent"
+          >
+            <span className="material-symbols-outlined text-[18px]">table_view</span>
+            Export CSV
+          </button>
+          <button
+            type="button"
             disabled={pdfLoading}
             onClick={async () => {
               setPdfLoading(true);
@@ -168,6 +177,7 @@ function AdminMembers() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-surface-container-low text-on-surface-variant font-label-md">
               <tr>
+                <th className="px-6 py-4 font-semibold">Member ID</th>
                 <th className="px-6 py-4 font-semibold">Name</th>
                 <th className="px-6 py-4 font-semibold">Tier</th>
                 <th className="px-6 py-4 font-semibold">Category</th>
@@ -183,13 +193,16 @@ function AdminMembers() {
             <tbody className="divide-y divide-outline-variant/30">
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-on-surface-variant">
+                  <td colSpan="11" className="px-6 py-8 text-center text-on-surface-variant">
                     {hasFilters ? 'No members match your filters.' : 'No members registered yet.'}
                   </td>
                 </tr>
               ) : (
                 filteredMembers.map((m) => (
                   <tr key={m.id} className="hover:bg-surface-container-low/50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-label-sm text-on-surface-variant whitespace-nowrap">
+                      {m.membership_id || '—'}
+                    </td>
                     <td className="px-6 py-4 font-bold text-on-surface">{m.full_name}</td>
                     <td className="px-6 py-4 text-on-surface-variant">
                       {m.membership_tier ? m.membership_tier[0].toUpperCase() + m.membership_tier.slice(1) : '—'}
@@ -246,6 +259,14 @@ function AdminMembers() {
                           className="bg-transparent p-2 text-on-tertiary-fixed-variant hover:bg-tertiary-fixed/30 rounded-lg transition-colors"
                         >
                           <span className="material-symbols-outlined text-[20px]">visibility</span>
+                        </button>
+                        <button
+                          type="button"
+                          title="ID card"
+                          onClick={() => openIdCard(m)}
+                          className="bg-transparent p-2 text-secondary hover:bg-secondary-container/40 rounded-lg transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">badge</span>
                         </button>
                         <button
                           type="button"

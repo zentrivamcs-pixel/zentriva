@@ -13,7 +13,7 @@ const inboxRepo = require('../shared/inboxRepo');
 const skillsRepo = require('../shared/skillsRepo');
 const { getTier } = require('../shared/membershipTiers');
 const auth = require('../shared/authUtils');
-const { validateRegistration, validateSkillApplication, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString } = require('../shared/validation');
+const { validateRegistration, validateSkillApplication, passwordError, cleanProfileUpdate, cleanAdminWrite, cleanPaymentUpdate, cleanEmail, cleanUrl, cleanString, cleanMembershipId, MEMBERSHIP_ID_ERROR } = require('../shared/validation');
 const { isEmailEnabled, sendRegistrationEmail, sendPasswordResetEmail, sendPaymentApprovedEmail, sendPaymentRejectedEmail, sendVerificationEmail, getReceivedEmail, sendBroadcast } = require('../shared/email');
 const { verifySvixSignature } = require('../shared/webhookAuth');
 const { DEFAULT_AUDIENCE, MAX_RECIPIENTS, isValidAudience, selectRecipients } = require('../shared/broadcast');
@@ -417,9 +417,25 @@ app.put('/api/members/:id', requireAdmin, wrap(async (req, res) => {
   if (body.email && !cleaned.email) {
     return res.status(400).json({ error: 'Email address is not valid' });
   }
-  const updated = await repo.updateMember(db, req.params.id, cleaned);
-  if (!updated) return res.status(404).json({ error: 'Not found' });
-  res.json(repo.sanitizeMember(updated));
+  // The membership number is editable but never clearable — a blank or
+  // malformed one is refused rather than saved, since it's what the member's
+  // card and QR code identify them by. Absent means unchanged.
+  if (body.membership_id !== undefined && body.membership_id !== null) {
+    cleaned.membership_id = cleanMembershipId(body.membership_id);
+    if (!cleaned.membership_id) {
+      return res.status(400).json({ error: MEMBERSHIP_ID_ERROR });
+    }
+  }
+  try {
+    const updated = await repo.updateMember(db, req.params.id, cleaned);
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    res.json(repo.sanitizeMember(updated));
+  } catch (err) {
+    if (err instanceof repo.ConflictError) {
+      return res.status(409).json({ error: err.message, code: err.code });
+    }
+    throw err;
+  }
 }));
 
 app.delete('/api/members/:id', requireAdmin, wrap(async (req, res) => {

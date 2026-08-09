@@ -15,6 +15,12 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // Paystack references are alphanumeric with ._-= (never spaces or quotes).
 const REFERENCE_RE = /^[\w.\-=]{1,100}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// A membership number. Generated ones look like "ZNTR-1042-EXE-2026", but an
+// admin may renumber a member by hand, so the shape is left open and only the
+// characters are restricted: this string is printed on the ID card, encoded
+// into its QR payload, and used as the exported card's filename, so slashes,
+// spaces, and anything path- or control-like are refused.
+const MEMBERSHIP_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
 
 const GENDERS = ['Male', 'Female'];
 const CATEGORIES = ['Executive Member', 'Non-Executive Member'];
@@ -271,6 +277,20 @@ function cleanAdminWrite(body) {
   return cleanFields(body);
 }
 
+// Admin rename of a member's membership number. Deliberately not a
+// FIELD_SPEC: it isn't collected at registration, and the generic admin write
+// blanks every field it doesn't receive — which would quietly strip the
+// number off members whose edit payload didn't carry one. Upper-cased so a
+// hand-typed "zntr-1050" matches the generated format on the card, and so two
+// numbers can never differ by case alone. Returns null if unusable.
+const MEMBERSHIP_ID_ERROR =
+  'Membership ID must be 1–60 characters: letters, numbers, dots, dashes or underscores';
+
+function cleanMembershipId(value) {
+  const text = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return MEMBERSHIP_ID_RE.test(text) ? text : null;
+}
+
 // Admin edit of a member's payment details. Only the three payment fields an
 // admin is allowed to correct by hand, each checked against the same rules
 // registration uses. Returns { value, errors }; only the fields actually
@@ -311,6 +331,7 @@ module.exports = {
   cleanString, cleanEmail, cleanPhone, cleanArray, cleanEnum, cleanUrl,
   validateRegistration, validateSkillApplication, passwordError,
   cleanProfileUpdate, cleanAdminWrite,
+  cleanMembershipId, MEMBERSHIP_ID_ERROR,
   cleanPaymentUpdate, PAYMENT_STATUSES, PAYMENT_METHODS, TRAINING_SKILLS,
   PASSWORD_MIN, PASSWORD_MAX,
 };

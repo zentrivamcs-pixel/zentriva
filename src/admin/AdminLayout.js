@@ -4,6 +4,7 @@ import '../styles/tailwind.css';
 import AdminSideNav from './AdminSideNav';
 import AdminTopNav from './AdminTopNav';
 import { AdminViewModal, AdminEditModal, AdminPaymentModal } from './AdminModals';
+import AdminIdCardModal from './AdminIdCardModal';
 import { EDIT_FIELDS } from './adminHelpers';
 import { adminApi } from '../shared/api';
 
@@ -30,6 +31,10 @@ function AdminLayout({ onLogout }) {
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  // Shown inside the edit modal rather than as an alert: a rejected
+  // membership ID (blank, malformed, or already taken) needs the admin's
+  // typed value still on screen to correct.
+  const [editError, setEditError] = useState('');
   const [viewing, setViewing] = useState(null);
 
   const [editingPayment, setEditingPayment] = useState(null);
@@ -38,6 +43,9 @@ function AdminLayout({ onLogout }) {
 
   // Mobile: the sidebar becomes a slide-in drawer toggled from the top nav.
   const [navOpen, setNavOpen] = useState(false);
+
+  // The member whose ID card is open for preview, if any.
+  const [idCardMember, setIdCardMember] = useState(null);
 
   // An expired/invalid token means every call will 401 — drop back to login.
   const handleAuthError = useCallback((error) => {
@@ -216,6 +224,14 @@ function AdminLayout({ onLogout }) {
     }
   };
 
+  // Opens the member's ID card for preview — the same card they can download
+  // themselves in the portal, so an admin can check it and send it on to a
+  // member who hasn't activated their account.
+  const openIdCard = useCallback((member) => {
+    setViewing(null);
+    setIdCardMember(member);
+  }, []);
+
   const handleDelete = async (member) => {
     if (!window.confirm(`Delete ${member.full_name}? This cannot be undone.`)) return;
     try {
@@ -229,6 +245,7 @@ function AdminLayout({ onLogout }) {
 
   const openEdit = (member) => {
     setViewing(null);
+    setEditError('');
     setEditing(member);
     const form = {};
     EDIT_FIELDS.forEach(({ name, type }) => {
@@ -245,6 +262,7 @@ function AdminLayout({ onLogout }) {
   const saveEdit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setEditError('');
     try {
       const payload = { ...editing };
       EDIT_FIELDS.forEach(({ name, type }) => {
@@ -260,7 +278,9 @@ function AdminLayout({ onLogout }) {
       setEditing(null);
     } catch (error) {
       console.error('Error updating member:', error);
-      if (!handleAuthError(error)) alert('Failed to save changes');
+      // The server's message is the useful one here ("Another member already
+      // has that membership ID"), not a generic failure line.
+      if (!handleAuthError(error)) setEditError(error.message || 'Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -284,6 +304,7 @@ function AdminLayout({ onLogout }) {
               members, loading, reload: loadMembers,
               setViewing, openEdit, handleDelete, handleResetAccount,
               handlePaymentDecision, openPaymentEdit,
+              openIdCard,
               messages, inboxLoading, inboxError, reloadInbox: loadInbox, markMessageRead,
               skillApplications, skillsLoading, skillsError, reloadSkills: loadSkills,
               setSkillStatus, deleteSkillApplication,
@@ -301,7 +322,11 @@ function AdminLayout({ onLogout }) {
           onApprovePayment={() => handlePaymentDecision(viewing, 'approve')}
           onRejectPayment={() => handlePaymentDecision(viewing, 'reject')}
           onEditPayment={() => openPaymentEdit(viewing)}
+          onOpenIdCard={() => openIdCard(viewing)}
         />
+      )}
+      {idCardMember && (
+        <AdminIdCardModal member={idCardMember} onClose={() => setIdCardMember(null)} />
       )}
       {editingPayment && (
         <AdminPaymentModal
@@ -316,6 +341,7 @@ function AdminLayout({ onLogout }) {
         <AdminEditModal
           editForm={editForm}
           saving={saving}
+          error={editError}
           onChange={handleEditChange}
           onSubmit={saveEdit}
           onClose={() => setEditing(null)}

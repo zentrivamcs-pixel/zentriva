@@ -4,13 +4,28 @@ import {
   PAYMENT_STATUS_LABELS, PAYMENT_STATUS_OPTIONS, PAYMENT_METHOD_OPTIONS,
 } from './adminHelpers';
 
-export function AdminViewModal({ member, onClose, onEdit, onResetAccount, onApprovePayment, onRejectPayment, onEditPayment }) {
+export function AdminViewModal({
+  member, onClose, onEdit, onResetAccount, onApprovePayment, onRejectPayment,
+  onEditPayment, onOpenIdCard,
+}) {
+  const [copiedId, setCopiedId] = useState(false);
   const paymentStatus = PAYMENT_STATUS_LABELS[member.payment_status];
   // Both states are awaiting an admin: 'pending_review' has transfer proof to
   // check, 'pending_payment' ("pay later") has money still to arrive.
   const isPending = member.payment_status === 'pending_review'
     || member.payment_status === 'pending_payment';
   const approveLabel = member.payment_status === 'pending_payment' ? 'Mark Paid' : 'Approve';
+
+  const copyMembershipId = async () => {
+    try {
+      await navigator.clipboard.writeText(member.membership_id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 1500);
+    } catch {
+      // Clipboard access denied — the number is on screen to read anyway.
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-on-background/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -30,6 +45,40 @@ export function AdminViewModal({ member, onClose, onEdit, onResetAccount, onAppr
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Membership number + the member's ID card. The card is rendered
+              from this record on demand and shown before it can be saved, so
+              an admin can reissue a checked card to a member who hasn't
+              activated their portal account. The number itself is changed
+              through Edit. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div>
+              <p className="text-label-md font-bold text-on-surface">Membership ID</p>
+              <p className="text-body-md font-mono text-primary">{member.membership_id || '—'}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {member.membership_id && (
+                <button
+                  type="button"
+                  onClick={copyMembershipId}
+                  className="px-3 py-1.5 border border-outline-variant text-primary rounded-lg text-label-sm hover:bg-surface-container-lowest transition-colors bg-transparent flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {copiedId ? 'check' : 'content_copy'}
+                  </span>
+                  {copiedId ? 'Copied' : 'Copy'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onOpenIdCard}
+                className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-label-sm hover:opacity-90 transition-opacity flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">badge</span>
+                View ID card
+              </button>
+            </div>
+          </div>
+
           {/* Payment verification — bank-transfer registrations start
               pending_review and need an admin decision before the member can
               log in. Paystack registrations are already 'paid' by the time
@@ -307,7 +356,7 @@ export function AdminPaymentModal({ member, saving, error, onSave, onClose }) {
   );
 }
 
-export function AdminEditModal({ editForm, saving, onChange, onSubmit, onClose }) {
+export function AdminEditModal({ editForm, saving, error, onChange, onSubmit, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-on-background/50 flex items-center justify-center z-50 p-4"
@@ -331,8 +380,13 @@ export function AdminEditModal({ editForm, saving, onChange, onSubmit, onClose }
         </div>
 
         <form onSubmit={onSubmit}>
+          {error && (
+            <p className="mx-6 mt-6 -mb-2 px-3 py-2 bg-error-container text-on-error-container rounded-lg text-label-sm" role="alert">
+              {error}
+            </p>
+          )}
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {EDIT_FIELDS.map(({ name, label, type }) => (
+            {EDIT_FIELDS.map(({ name, label, type, hint }) => (
               <div key={name} className={type === 'textarea' ? 'sm:col-span-2' : ''}>
                 <label className="block text-label-sm text-on-surface-variant mb-1">{label}</label>
                 {type === 'textarea' ? (
@@ -349,9 +403,10 @@ export function AdminEditModal({ editForm, saving, onChange, onSubmit, onClose }
                     name={name}
                     value={editForm[name]}
                     onChange={onChange}
-                    className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:outline-none"
+                    className={`w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-body-md focus:ring-2 focus:ring-primary focus:outline-none${name === 'membership_id' ? ' font-mono' : ''}`}
                   />
                 )}
+                {hint && <p className="text-label-sm text-outline mt-1">{hint}</p>}
               </div>
             ))}
           </div>

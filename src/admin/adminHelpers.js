@@ -57,7 +57,7 @@ export const countWhere = (members, field, value) =>
 
 // Build one searchable string from a member's main fields.
 export const searchableText = (member) => [
-  member.full_name, member.email, member.phone_number, member.whatsapp_number,
+  member.full_name, member.membership_id, member.email, member.phone_number, member.whatsapp_number,
   member.profession, member.business_name, member.business_type, member.company_name,
   member.job_title, member.business_location, member.membership_tier, member.membership_category,
   ...(member.skills || []), ...(member.offer_category || [])
@@ -99,6 +99,9 @@ export const formatDate = (v) => {
 };
 
 export const EDIT_FIELDS = [
+  // Editable so a member can be renumbered, but the server refuses a blank
+  // or duplicate one — it's what their ID card and QR code identify them by.
+  { name: 'membership_id', label: 'Membership ID', type: 'text', hint: 'Letters, numbers, dots, dashes or underscores. Saved in capitals and must be unique.' },
   { name: 'full_name', label: 'Full Name', type: 'text' },
   { name: 'membership_tier', label: 'Membership Tier', type: 'text' },
   { name: 'membership_category', label: 'Membership Category', type: 'text' },
@@ -125,6 +128,7 @@ export const EDIT_FIELDS = [
 export const DETAIL_SECTIONS = [
   {
     title: 'Personal', rows: [
+      ['Membership ID', 'membership_id'],
       ['Full Name', 'full_name'], ['Membership Tier', 'membership_tier'],
       ['Membership Category', 'membership_category'], ['Gender', 'gender'],
       ['Date of Birth', 'date_of_birth'], ['Phone', 'phone_number'], ['WhatsApp', 'whatsapp_number'],
