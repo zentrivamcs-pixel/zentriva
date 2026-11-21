@@ -47,16 +47,16 @@ function prng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.
 function fit(text,max,width,ratio){return Math.min(max,Math.floor(width/(Math.max(1,text.length)*ratio)))}
 function badgeSVG(r){
  var rnd=prng(hash(r.tag+"|"+r.name.toLowerCase())),KF=r.code==="KF",CO=r.code==="CO";
- var main=CO?"#8a6a2c":KF?"#4a6b45":"#b0623d",deep=CO?"#3d3020":KF?"#2f4a2c":"#7e3f22",sky=CO?"#3d3020":KF?"#33502f":"#8c4a2a",gold="#d9a441";
- var parts=r.name.split(" "),first=parts[0],rest=parts.slice(1).join(" ");
+ var main=CO?"#8a6a2c":KF?"#1d4e9e":"#b8202b",deep=CO?"#3d3020":KF?"#12336e":"#7c121a",sky=CO?"#3d3020":KF?"#163f86":"#9a1a24",gold="#d9a441";
+ var u=String(r.tag).replace(/[^A-Za-z0-9]/g,""),parts=r.name.split(" "),first=parts[0],rest=parts.slice(1).join(" ");
  var o='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" role="img" aria-label="Badge for '+esc(r.name)+'">';
- o+='<defs><clipPath id="cb"><rect width="600" height="900" rx="30"/></clipPath><clipPath id="top"><rect x="0" y="0" width="600" height="300"/></clipPath></defs>';
- o+='<g clip-path="url(#cb)"><rect width="600" height="900" fill="#fbf7ee"/>';
+ o+='<defs><clipPath id="cb'+u+'"><rect width="600" height="900" rx="30"/></clipPath><clipPath id="top'+u+'"><rect x="0" y="0" width="600" height="300"/></clipPath></defs>';
+ o+='<g clip-path="url(#cb'+u+')"><rect width="600" height="900" fill="#fbf7ee"/>';
  /* header band: unique faded landscape (sun, mountains, hills, birds) */
- o+='<defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+sky+'"/><stop offset="1" stop-color="'+main+'"/></linearGradient><radialGradient id="sg"><stop offset="0" stop-color="#f4d18a" stop-opacity=".6"/><stop offset="1" stop-color="#f4d18a" stop-opacity="0"/></radialGradient></defs>';
- o+='<rect width="600" height="300" fill="url(#sk)"/><g clip-path="url(#top)">';
+ o+='<defs><linearGradient id="sk'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+sky+'"/><stop offset="1" stop-color="'+main+'"/></linearGradient><radialGradient id="sg'+u+'"><stop offset="0" stop-color="#f4d18a" stop-opacity=".6"/><stop offset="1" stop-color="#f4d18a" stop-opacity="0"/></radialGradient></defs>';
+ o+='<rect width="600" height="300" fill="url(#sk'+u+')"/><g clip-path="url(#top'+u+')">';
  var sx=rnd()<.5?60+rnd()*90:450+rnd()*90,sy=200+rnd()*40;
- o+='<circle cx="'+sx+'" cy="'+sy+'" r="150" fill="url(#sg)"/><circle cx="'+sx+'" cy="'+sy+'" r="'+(34+rnd()*14)+'" fill="#f4d18a" fill-opacity=".3"/>';
+ o+='<circle cx="'+sx+'" cy="'+sy+'" r="150" fill="url(#sg'+u+')"/><circle cx="'+sx+'" cy="'+sy+'" r="'+(34+rnd()*14)+'" fill="#f4d18a" fill-opacity=".3"/>';
  var m="M0 300 L0 "+(230+rnd()*30),mx=0;while(mx<600){mx+=60+rnd()*70;m+=" L"+Math.min(600,mx-30-rnd()*10)+" "+(150+rnd()*70)+" L"+Math.min(600,mx)+" "+(215+rnd()*40)}
  o+='<path d="'+m+' L600 300Z" fill="#fff" fill-opacity=".07"/>';
  [[250,26,".09","#fff"],[272,18,".16","#000"]].forEach(function(L){var y0=L[0],amp=L[1],ph=rnd()*6.28,f=.008+rnd()*.008,d="M0 300";
