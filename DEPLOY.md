@@ -9,10 +9,11 @@ The React app is served by Vercel as a static site. The `/api/members` API runs 
 | `GET /api/members`, `POST /api/members` | [api/members/index.js](api/members/index.js) |
 | `PUT /api/members/:id`, `DELETE /api/members/:id` | [api/members/[id].js](api/members/[id].js) |
 | `GET/POST/PATCH/DELETE /api/skills` (Learn a Skill applications) | [api/skills.js](api/skills.js) |
+| `GET/POST /api/youth` (Youth & Children Program registration, served at ctca.zentrivacoop.com — see [youth-register/DEPLOY.md](youth-register/DEPLOY.md)) | [api/youth.js](api/youth.js) |
 | shared DB helpers (not a route — `_` prefix) | [api/_lib.js](api/_lib.js) |
 
-> A Hobby deployment is capped at **12 serverless functions**; `api/` currently
-> holds 11. Adding a feature usually means folding its verbs into one file (as
+> A Hobby deployment is capped at **12 serverless functions**; `api/` now
+> holds **12 — the limit**. Adding a feature usually means folding its verbs into one file (as
 > `api/skills.js` does) rather than adding a file per route.
 
 > Local development is unchanged: `npm run dev` still runs the Express + local SQLite
@@ -67,6 +68,8 @@ Vercel deploys from a Git repo. Create a repo and push the `ctca-business-form` 
 | `EMAIL_FROM` | Sender on your Resend-verified domain, e.g. `Zentriva <no-reply@zentrivacoop.com>`. Email stays disabled until this and `RESEND_API_KEY` are both set | runtime |
 | `APP_BASE_URL` | Public site origin used in email links, e.g. `https://zentrivacoop.com` | runtime |
 | `RESEND_WEBHOOK_SECRET` | Signing secret for the Resend webhook that delivers inbound mail. **Without it every inbound email is rejected and never reaches the admin Inbox** | runtime |
+| `YOUTH_ORGANISER_PIN` | PIN (6+ digits) for the Organiser view on ctca.zentrivacoop.com/register. Without it that view says "not set up yet"; registration itself still works | runtime |
+| `YOUTH_COORD_CODE` | Code coordinators enter on that page to get a CO-### badge | runtime |
 
 > `REACT_APP_*` values are baked into the JS bundle at **build time** — if you change
 > one later, redeploy. Every other value here is read at **runtime** by the functions.

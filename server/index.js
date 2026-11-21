@@ -533,6 +533,12 @@ app.delete('/api/skills', requireAdmin, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// --- Youth & Children Program registration (youth-register/) -----------------------
+
+// The Vercel handler is plain (req, res) with res.status().json(), which Express
+// supports as-is — mounting it directly keeps dev and production identical.
+app.all('/api/youth', require('../api/youth'));
+
 // --- Inbound email (Resend "Inbound") ---------------------------------------------
 
 // Resend's email.received webhook. Payloads only carry metadata, so this

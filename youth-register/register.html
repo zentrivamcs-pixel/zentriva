@@ -1,26 +1,146 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CTCA Youth &amp; Children Program — Registration</title>
 <meta name="description" content="Register for the Charity Tabernacle Christian Assembly Youth and Children Program: Seek Ye First The Kingdom Of God.">
 <meta name="theme-color" content="#2f4a2c">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;height:100%;background:#f6f1e6;font:14px/1.4 system-ui,sans-serif}
-  iframe{display:block;border:0;width:100%;height:calc(100dvh - 34px)}
-  @supports not (height:100dvh){iframe{height:calc(100vh - 34px)}}
-  .bar{height:34px;display:flex;align-items:center;justify-content:center;background:#2f4a2c;color:#fff}
-  .bar a{color:#f4d18a}
-</style>
-</head>
-<body>
-<!--
-  Paste the Apps Script "Web app" URL (ends in /exec) in BOTH places below.
--->
-<iframe src="https://script.google.com/macros/s/PASTE_DEPLOYMENT_ID/exec"
-        title="CTCA Youth and Children Program registration"
-        allow="clipboard-write"></iframe>
-<div class="bar">Page not loading?&nbsp;<a href="https://script.google.com/macros/s/PASTE_DEPLOYMENT_ID/exec" target="_blank" rel="noopener">Open the form directly</a></div>
-</body>
-</html>
+:root{--bg:#f6f1e6;--card:rgba(255,253,247,.9);--ink:#2a241c;--muted:#6f6556;--line:#e3d9c6;--find:#4a6b45;--seek:#b0623d;--gold:#d9a441;--forest:#2f4a2c}
+@media(prefers-color-scheme:dark){:root{--bg:#161a14;--card:rgba(32,36,28,.92);--ink:#f1ece0;--muted:#b9b09f;--line:#3b4033}}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Source Sans 3",system-ui,sans-serif;overflow-x:clip}
+h1,h2{font-family:Cinzel,Georgia,serif;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(26px,6vw,44px)}h2{font-size:24px;margin-bottom:14px}
+header{position:relative;overflow:hidden;background:linear-gradient(180deg,#243b23 0%,#2f4a2c 55%,#4d6a42 100%);color:#fff;padding:30px max(5vw,16px) 34px;border-bottom:5px solid var(--gold)}
+header .wrap{position:relative}
+.scene{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.land{position:fixed;left:0;right:0;bottom:0;width:100%;height:46vh;z-index:-1;pointer-events:none}
+.card{backdrop-filter:blur(2px)}
+header .prog{font-weight:700;font-size:18px;margin-top:10px}
+header .theme{font:700 clamp(20px,4.6vw,28px)/1.2 Cinzel,Georgia,serif;margin-top:14px;color:#f4d18a}
+header .theme span{display:block;font:600 14px "Source Sans 3",sans-serif;color:#fff;opacity:.85;margin-bottom:2px}
+header blockquote{margin:12px 0 0;padding-left:14px;border-left:3px solid var(--gold);font-style:italic;opacity:.95;max-width:560px}
+header cite{display:block;font-style:normal;font-weight:700;font-size:14px;margin-top:4px;opacity:.9}
+.badgewrap{max-width:400px;margin:0 auto}.badgewrap svg,.badgewrap img{width:100%;height:auto;display:block;filter:drop-shadow(0 10px 24px rgba(0,0,0,.22))}
+.wrap{max-width:560px;margin:0 auto}
+main{padding:24px max(5vw,16px) 48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+[hidden]{display:none!important}
+form{display:grid;gap:18px}
+label.f{display:grid;gap:6px;font-weight:600}
+input[type=text],input[type=number],input[type=password]{font:16px "Source Sans 3",sans-serif;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-height:48px;width:100%}
+fieldset{border:0;padding:0;margin:0}legend{font-weight:600;margin-bottom:8px}
+.opts{display:flex;gap:10px;flex-wrap:wrap}
+label.opt{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 18px;min-height:48px;cursor:pointer;background:var(--bg)}
+label.opt input{width:18px;height:18px;accent-color:var(--find)}
+.btn{font:700 17px "Source Sans 3",sans-serif;border:0;border-radius:12px;padding:13px 24px;min-height:50px;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.gold{background:var(--gold);color:#241a00}.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:wait}
+button:focus-visible,input:focus-visible,label.opt:focus-within{outline:3px solid var(--gold);outline-offset:2px}
+.err{color:var(--seek);font-weight:600;min-height:1.5em}.note{color:var(--muted);font-size:14px}
+.hello{text-align:center}.hello .who{font:700 24px/1.2 Cinzel,serif;margin:2px 0 14px;overflow-wrap:anywhere}
+.wheel{position:relative;width:min(84vw,380px);aspect-ratio:1;margin:0 auto 18px}
+.wheel svg{width:100%;height:100%;display:block}
+.center{text-align:center}
+.tagcard{border-radius:18px;color:#fff;padding:26px 22px;text-align:center;position:relative;overflow:hidden}
+.tagcard.KF{background:var(--find)}.tagcard.KS{background:var(--seek)}
+.tagcard:after{content:"";position:absolute;inset:auto 0 0 0;height:8px;background:var(--gold)}
+.tagcard .lbl{font-size:14px;opacity:.85}
+.tagcard .grp{font:700 26px/1.15 Cinzel,serif;margin:2px 0 14px}
+.tagcard .tag{font:700 clamp(54px,16vw,84px)/1 Cinzel,serif;letter-spacing:.04em;background:#fff;color:var(--ink);border-radius:14px;padding:14px 10px;margin:6px auto 14px;max-width:320px}
+.tagcard .nm{font-size:20px;font-weight:700;overflow-wrap:anywhere}
+.tagcard .meta{opacity:.9;font-size:15px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+footer{text-align:center;padding:0 16px 32px}
+footer button{background:none;border:0;color:var(--muted);text-decoration:underline;font:14px "Source Sans 3",sans-serif;cursor:pointer;min-height:44px}
+.groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+.g{border-top:6px solid var(--find)}.g.KS{border-top-color:var(--seek)}.g.CO{border-top-color:#8a6a2c}.g.CO h2{color:#8a6a2c}
+.g h2{font-size:20px;color:var(--find)}.g.KS h2{color:var(--seek)}
+ol{margin:0;padding-left:0;list-style:none}ol li{padding:7px 0;border-bottom:1px solid var(--line)}
+ol b{display:inline-block;min-width:4.2em;font-variant-numeric:tabular-nums}
+ol span{color:var(--muted);font-size:14px;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:15px}th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}td.n,th.n{text-align:right}
+.admin{max-width:1000px}
+@media(max-width:640px){.groups{grid-template-columns:minmax(0,1fr)}}
+</style></head><body>
+<header>
+<svg class="scene" viewBox="0 0 1200 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+ <defs><radialGradient id="sunG" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f4d18a" stop-opacity=".55"/><stop offset="1" stop-color="#f4d18a" stop-opacity="0"/></radialGradient></defs>
+ <circle cx="930" cy="250" r="230" fill="url(#sunG)"/><circle cx="930" cy="250" r="62" fill="#f4d18a" fill-opacity=".35"/>
+ <g stroke="#f4d18a" stroke-opacity=".14" stroke-width="3">
+  <line x1="930" y1="250" x2="930" y2="20"/><line x1="930" y1="250" x2="1100" y2="60"/><line x1="930" y1="250" x2="760" y2="60"/><line x1="930" y1="250" x2="1190" y2="170"/><line x1="930" y1="250" x2="670" y2="170"/></g>
+ <path d="M0 300 L140 190 L230 250 L360 140 L470 240 L560 200 L700 290 L820 210 L960 300 L1080 220 L1200 280 V420 H0Z" fill="#fff" fill-opacity=".06"/>
+ <path d="M0 330 Q150 270 300 315 T600 305 T900 320 T1200 300 V420 H0Z" fill="#fff" fill-opacity=".08"/>
+ <path d="M0 370 Q200 325 420 362 T820 352 T1200 360 V420 H0Z" fill="#000" fill-opacity=".14"/>
+ <g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round">
+  <path d="M640 120 q10 -9 20 0 q10 -9 20 0"/><path d="M700 95 q7 -6 14 0 q7 -6 14 0"/><path d="M590 150 q6 -5 12 0 q6 -5 12 0"/></g>
+</svg>
+<div class="wrap" id="hwrap">
+ <h1>Charity Tabernacle Christian Assembly</h1>
+ <div class="prog">Youth and Children Program</div>
+ <div class="theme"><span>Theme</span>Seek Ye First The Kingdom Of God</div>
+ <blockquote>“But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you.”<cite>Matthew 6:33 (KJV)</cite></blockquote>
+</div></header>
+<svg class="land" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+ <path d="M0 330 Q200 260 420 310 T840 290 T1200 300 V500 H0Z" fill="#8aa37c" fill-opacity=".16"/>
+ <path d="M0 400 Q260 340 520 390 T1200 370 V500 H0Z" fill="#6f8f62" fill-opacity=".16"/>
+ <path d="M0 450 Q300 410 640 445 T1200 430 V500 H0Z" fill="#4a6b45" fill-opacity=".14"/>
+ <g stroke="#a78a4f" stroke-opacity=".28" stroke-width="2.5" fill="#c9a86a" fill-opacity=".22">
+  <path d="M60 500 Q70 400 52 330" fill="none"/><ellipse cx="50" cy="322" rx="6" ry="16"/><ellipse cx="62" cy="350" rx="5" ry="13" transform="rotate(25 62 350)"/><ellipse cx="44" cy="356" rx="5" ry="13" transform="rotate(-25 44 356)"/><ellipse cx="64" cy="382" rx="5" ry="13" transform="rotate(25 64 382)"/><ellipse cx="47" cy="388" rx="5" ry="13" transform="rotate(-25 47 388)"/>
+  <path d="M100 500 Q108 420 96 360" fill="none"/><ellipse cx="95" cy="352" rx="6" ry="15"/><ellipse cx="106" cy="380" rx="5" ry="12" transform="rotate(25 106 380)"/><ellipse cx="89" cy="386" rx="5" ry="12" transform="rotate(-25 89 386)"/>
+  <path d="M1130 500 Q1120 410 1140 340" fill="none"/><ellipse cx="1141" cy="332" rx="6" ry="16"/><ellipse cx="1130" cy="362" rx="5" ry="13" transform="rotate(-25 1130 362)"/><ellipse cx="1148" cy="368" rx="5" ry="13" transform="rotate(25 1148 368)"/><ellipse cx="1128" cy="396" rx="5" ry="13" transform="rotate(-25 1128 396)"/>
+ </g>
+</svg>
+<main><div class="wrap" id="mwrap">
+
+<section id="s-form" class="card">
+ <h2>Registration</h2>
+ <form id="f" novalidate>
+  <label class="f">Full name<input type="text" id="name" autocomplete="name" maxlength="80"></label>
+  <label class="f">Age<input type="number" id="age" inputmode="numeric" min="1" max="120"></label>
+  <fieldset><legend>Gender</legend><div class="opts">
+   <label class="opt"><input type="radio" name="g" value="Male"> Male</label>
+   <label class="opt"><input type="radio" name="g" value="Female"> Female</label></div></fieldset>
+  <details id="coordBox"><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">I'm a coordinator</summary>
+   <label class="f" style="margin-top:6px">Coordinator code<input type="text" id="ccode" autocomplete="off" autocapitalize="characters"></label>
+   <p class="note" style="margin:6px 0 0">Coordinators get their badge straight away, with no spin.</p></details>
+  <div><button class="btn" id="go" type="submit">Continue to spin</button></div>
+  <div class="err" id="ferr" role="alert"></div>
+ </form>
+</section>
+
+<section id="s-spin" class="card" hidden>
+ <div class="hello"><div class="note">Ready,</div><div class="who" id="who"></div></div>
+ <div class="wheel"><svg viewBox="0 0 400 400" aria-label="Grouping wheel"><g id="rot"></g>
+  <circle cx="200" cy="200" r="34" fill="#fbf7ee" stroke="var(--gold)" stroke-width="6"/>
+  <path d="M200 44 L184 6 L216 6 Z" fill="var(--gold)" stroke="#6b4a12" stroke-width="2"/></svg></div>
+ <div class="center"><button class="btn gold" id="spin">Spin the wheel</button>
+  <div class="err" id="serr" role="alert" style="margin-top:10px"></div>
+  <button class="btn ghost" id="back" type="button">Edit my details</button></div>
+</section>
+
+<section id="s-done" hidden>
+ <h2 class="center" id="tcHead">Welcome! Here is your badge</h2>
+ <div class="badgewrap" id="badge"></div>
+ <p class="center note" id="saveNote">Save your badge and show it at the desk.</p>
+ <div class="row"><button class="btn gold" id="saveBadge">Save badge</button><button class="btn ghost" id="another">Register someone else</button></div>
+</section>
+
+<section id="s-admin" hidden>
+ <div class="card" id="pinBox"><h2>Organiser</h2>
+  <form id="pf" style="gap:12px"><label class="f">PIN<input type="password" id="pin" inputmode="numeric" autocomplete="off"></label>
+  <div class="row" style="justify-content:flex-start;margin:0"><button class="btn" id="pgo">View groups</button><button class="btn ghost" type="button" id="pclose">Close</button></div>
+  <div class="err" id="perr"></div></form></div>
+ <div id="adminView" hidden>
+  <div class="row" style="justify-content:flex-start;margin:0"><button class="btn" id="refresh">Refresh</button><button class="btn ghost" id="copy">Copy lists</button><button class="btn ghost" id="aclose">Close</button><span class="note" id="copied" style="align-self:center"></span></div>
+  <div class="groups"><div class="card g KF"><h2 id="hKF">Kingdom Finders</h2><ol id="lKF"></ol></div><div class="card g KS"><h2 id="hKS">Kingdom Seekers</h2><ol id="lKS"></ol></div></div>
+  <div class="card g CO" style="margin-top:16px"><h2 id="hCO">Coordinators</h2><ol id="lCO"></ol></div>
+  <div class="card" style="margin-top:16px"><h2>Balance check</h2><table><thead><tr><th>Age grade</th><th>Gender</th><th class="n">Finders</th><th class="n">Seekers</th></tr></thead><tbody id="bal"></tbody></table>
+  <p class="note">For Excel: open the Google Sheet, then File &gt; Download &gt; Microsoft Excel.</p></div>
+ </div>
+</section>
+</div></main>
+<footer><button id="org" type="button">Organiser</button></footer>
+
+<script src="/register.js" defer></script></body></html>
