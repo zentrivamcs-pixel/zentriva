@@ -41,12 +41,15 @@ async function getReadyDb() {
 }
 
 // Vercel parses JSON bodies automatically, but guard against strings/empties.
+// Always returns a plain object: a body of `null`, a number, or an array would
+// otherwise crash (or confuse) every handler that reads fields off it.
 function parseBody(req) {
-  if (!req.body) return {};
-  if (typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch { return {}; }
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { return {}; }
   }
-  return req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Buffer.isBuffer(body)) return {};
+  return body;
 }
 
 // Returns the request body as a string, for the webhook routes that verify a

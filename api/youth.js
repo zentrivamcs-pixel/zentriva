@@ -3,6 +3,8 @@
 // /api/youth here, so calls are same-origin and need no CORS.
 //
 //   POST { action: 'lookup', name, age }                 → { registrant | null }
+//   A name belongs to one registrant: lookup/spin/coordinator answer 409
+//   (code NAME_TAKEN) when it is already registered under a different age.
 //   POST { action: 'spin', name, age, gender }           → { registrant }  (public)
 //   POST { action: 'coordinator', name, age, gender, code } → { registrant }
 //   POST { action: 'groups', pin }                       → { registrants: [...] }
@@ -32,7 +34,9 @@ async function checkSecret(db, res, kind, submitted, envName, wrongMessage, norm
     return false;
   }
   const norm = normalise || ((s) => s);
-  if (!auth.safeEqual(norm(String(submitted || '').trim()), norm(expected.trim()))) {
+  // Only a short string (or a number, for a PIN sent unquoted) can be a secret.
+  const text = typeof submitted === 'string' || typeof submitted === 'number' ? String(submitted).trim() : '';
+  if (!text || text.length > 64 || !auth.safeEqual(norm(text), norm(expected.trim()))) {
     await youth.recordFailure(db, kind);
     res.status(403).json({ error: wrongMessage });
     return false;
@@ -81,6 +85,9 @@ module.exports = async (req, res) => {
 
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
+    if (err instanceof youth.NameTakenError) {
+      return res.status(409).json({ error: err.message, code: err.code });
+    }
     return sendServerError(res, err, `${req.method} /api/youth`);
   }
 };

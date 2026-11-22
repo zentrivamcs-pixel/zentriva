@@ -34,6 +34,7 @@ function landOn(code){return new Promise(function(done){
 /* result */
 var current=null;
 function showResult(r){
+ r.name=String(r.name).toUpperCase(); /* badges saved on this device before names were capitalised */
  current=r;$("badge").innerHTML=badgeSVG(r);
  $("tcHead").textContent=r.existing?"You're already registered. Here is your badge":"Welcome! Here is your badge";
  $("saveNote").textContent="Save your badge and show it at the desk.";
@@ -104,12 +105,20 @@ $("saveBadge").addEventListener("click",function(){
   $("saveNote").textContent="If it didn't download, press and hold the badge and choose Save image (or take a screenshot)."};
  img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)});
 
-/* form */
+/* form — same name rules as the server (shared/youthRepo.js cleanPerson), which stays the enforcement */
+var PART_RE=null,LETTER_RE=null;try{PART_RE=new RegExp("^\\p{L}[\\p{L}\\p{M}'’.-]*$","u");LETTER_RE=new RegExp("\\p{L}","gu")}catch(e){}
+function nameError(name){
+ var full="Please enter your full name (first and last).",parts=name?name.split(" "):[];
+ if(name.length>80)return "Please shorten your name to 80 characters or fewer.";
+ if(!PART_RE)return parts.length<2?full:"";
+ for(var i=0,words=0;i<parts.length;i++){if(!PART_RE.test(parts[i]))return "Please use letters only in your name (no numbers or symbols).";
+  if((parts[i].match(LETTER_RE)||[]).length>=2)words++}
+ return words<2?full:""}
 $("f").addEventListener("submit",function(e){e.preventDefault();
- var name=$("name").value.replace(/\s+/g," ").trim(),age=parseInt($("age").value,10),g=document.querySelector("input[name=g]:checked");
+ var name=$("name").value.replace(/\s+/g," ").trim().toUpperCase(),rawAge=$("age").value.trim(),age=/^\d{1,3}$/.test(rawAge)?parseInt(rawAge,10):NaN,g=document.querySelector("input[name=g]:checked");
  $("ferr").textContent="";
- if(name.split(" ").length<2)return $("ferr").textContent="Please enter your full name (first and last).";
- if(!(age>=1&&age<=120))return $("ferr").textContent="Please enter a valid age.";
+ var nerr=nameError(name);if(nerr)return $("ferr").textContent=nerr;
+ if(!(age>=1&&age<=120))return $("ferr").textContent="Please enter a valid age (a whole number).";
  if(!g)return $("ferr").textContent="Please choose a gender.";
  person={name:name,age:age,gender:g.value};$("go").disabled=true;$("go").textContent="Checking…";
  api({action:"lookup",name:name,age:age}).then(function(d){var hit=d.registrant;

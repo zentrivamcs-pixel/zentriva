@@ -21,8 +21,9 @@ let schemaReady = false;
 async function ensureSchema(db) {
   if (schemaReady) return;
 
-  // UNIQUE(name_key, age) is the "already registered" rule; UNIQUE(code, seq)
-  // backs the tag numbering so a tag can never be handed out twice.
+  // UNIQUE(code, seq) backs the tag numbering so a tag can never be handed out
+  // twice. The "already registered" rule is the unique index on name_key
+  // created below; UNIQUE(name_key, age) is the older, looser form of it.
   await db.execute(`
     CREATE TABLE IF NOT EXISTS youth_registrants (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +51,36 @@ async function ensureSchema(db) {
     )
   `);
 
+  // A name identifies exactly one registrant, whatever age is typed with it.
+  // Rows written before this rule used a looser key (case + spacing only), so
+  // bring them onto the current one first. A row whose new key collides with
+  // another row's is left as it is — register() still refuses new clashes.
+  const rows = await db.execute('SELECT id, full_name, name_key FROM youth_registrants');
+  for (const row of rows.rows) {
+    // Names are stored in capitals (see cleanPerson); done here rather than
+    // with SQL upper(), which only knows A–Z.
+    const upper = String(row.full_name).toUpperCase();
+    if (upper !== row.full_name) {
+      await db.execute({ sql: 'UPDATE youth_registrants SET full_name = ? WHERE id = ?', args: [upper, row.id] });
+    }
+    const key = nameKey(row.full_name);
+    if (key === row.name_key) continue;
+    try {
+      await db.execute({ sql: 'UPDATE youth_registrants SET name_key = ? WHERE id = ?', args: [key, row.id] });
+    } catch (err) {
+      console.warn(`Could not re-key youth registrant ${row.id} (duplicate name?):`, err.message);
+    }
+  }
+  // Guarded like the members email index: a table that already holds two
+  // people under one name keeps working, with register()'s own check in force.
+  try {
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_youth_registrants_name ON youth_registrants(name_key)'
+    );
+  } catch (err) {
+    console.warn('Could not create unique youth name index (duplicate names in data?):', err.message);
+  }
+
   schemaReady = true;
 }
 
@@ -58,22 +89,66 @@ function gradeFor(age) {
   return g ? g[0] : GRADES[3][0];
 }
 
+// What makes two typed names "the same name": case, accents, spacing,
+// punctuation and word order are all ignored, so "Adaeze  Okafor",
+// "okafor adaeze" and "Adaézé O'kafor"/"Adaeze Okafor" cannot each get a badge.
 function nameKey(name) {
-  return String(name).toLowerCase().replace(/\s+/g, ' ').trim();
+  return String(name)
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/['’.]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .sort()
+    .join(' ');
 }
+
+const NAME_MAX = 80;
+const AGE_MIN = 1;
+const AGE_MAX = 120;
+// Letters (any script) with apostrophes, hyphens and dots inside a word. This
+// also rules out a leading = + - @, which Excel/Sheets would read as a formula
+// in an exported list.
+const NAME_PART_RE = /^\p{L}[\p{L}\p{M}'’.-]*$/u;
 
 // Returns { value } or { error } — the error text is shown to the registrant.
 function cleanPerson(body) {
-  const raw = typeof body.name === 'string' ? body.name : '';
-  // Leading = + - @ would make Excel/Sheets treat an exported name as a formula.
-  // eslint-disable-next-line no-control-regex
-  const name = raw.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim()
-    .replace(/^[=+\-@]+\s*/, '').slice(0, 80);
-  const age = parseInt(body.age, 10);
-  if (name.split(' ').length < 2) return { error: 'Please enter your full name (first and last).' };
-  if (!(age >= 1 && age <= 120)) return { error: 'Please enter a valid age.' };
-  if (!GENDERS.includes(body.gender)) return { error: 'Please choose a gender.' };
-  return { value: { name, age, gender: body.gender } };
+  const source = body && typeof body === 'object' ? body : {};
+  if (typeof source.name !== 'string') return { error: 'Please enter your full name (first and last).' };
+  // Every name is stored, listed and printed on the badge in capital letters.
+  const name = source.name.normalize('NFC').replace(/\s+/g, ' ').trim().toUpperCase();
+  const parts = name ? name.split(' ') : [];
+  if (name.length > NAME_MAX) return { error: `Please shorten your name to ${NAME_MAX} characters or fewer.` };
+  if (!parts.every((part) => NAME_PART_RE.test(part))) {
+    return { error: 'Please use letters only in your name (no numbers or symbols).' };
+  }
+  // Two real words, so "A B" or a single name with an initial is not enough.
+  const words = parts.filter((part) => (part.match(/\p{L}/gu) || []).length >= 2);
+  if (words.length < 2) return { error: 'Please enter your full name (first and last).' };
+
+  // Whole numbers only: parseInt alone would accept "12abc" and "9.5".
+  const rawAge = typeof source.age === 'number' ? String(source.age) : source.age;
+  const age = typeof rawAge === 'string' && /^\d{1,3}$/.test(rawAge.trim()) ? Number(rawAge.trim()) : NaN;
+  if (!(age >= AGE_MIN && age <= AGE_MAX)) return { error: 'Please enter a valid age.' };
+
+  if (!GENDERS.includes(source.gender)) return { error: 'Please choose a gender.' };
+  return { value: { name, age, gender: source.gender } };
+}
+
+// Thrown when a name is already registered under a different age, so the
+// route can answer 409 with a message the registrant can act on.
+class NameTakenError extends Error {
+  constructor(fullName) {
+    super(
+      `"${fullName}" is already registered. If that is you, enter the age you registered with to see your badge. `
+      + 'If you are a different person, add your middle name so your name is different.'
+    );
+    this.name = 'NameTakenError';
+    this.code = 'NAME_TAKEN';
+  }
 }
 
 function toPublic(row, existing) {
@@ -89,12 +164,18 @@ function toPublic(row, existing) {
   };
 }
 
+// The registrant holding this name, or null. Same name + same age is the
+// person coming back for their badge; same name + another age is refused,
+// otherwise retyping your age would be a way to spin the wheel again.
 async function findRegistrant(db, person) {
   const result = await db.execute({
-    sql: 'SELECT * FROM youth_registrants WHERE name_key = ? AND age = ? LIMIT 1',
+    sql: `SELECT * FROM youth_registrants WHERE name_key = ?
+          ORDER BY (age = ?) DESC, id LIMIT 1`,
     args: [nameKey(person.name), person.age],
   });
-  return result.rows[0] || null;
+  const row = result.rows[0] || null;
+  if (row && Number(row.age) !== person.age) throw new NameTakenError(row.full_name);
+  return row;
 }
 
 // Fewer people of the same age grade + gender wins; then the smaller group;
@@ -116,7 +197,7 @@ async function chooseGroup(db, person) {
 
 // Inserts with the next number for `code`, computed inside the same statement
 // so concurrent registrations cannot collide. Returns the row, or null when
-// the person was already registered (the UNIQUE(name_key, age) conflict).
+// the name was already registered (the unique name_key conflict).
 async function insertRegistrant(db, person, code) {
   const result = await db.execute({
     sql: `INSERT INTO youth_registrants
@@ -124,7 +205,7 @@ async function insertRegistrant(db, person, code) {
           SELECT ? || '-' || printf('%03d', n), ?, n, ?, ?, ?, ?, ?, ?, ?
           FROM (SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM youth_registrants WHERE code = ?)
           WHERE 1
-          ON CONFLICT (name_key, age) DO NOTHING
+          ON CONFLICT DO NOTHING
           RETURNING *`,
     args: [
       code, code, person.name, nameKey(person.name), person.age, person.gender,
@@ -141,8 +222,11 @@ async function register(db, person, code) {
   if (existing) return toPublic(existing, true);
   const row = await insertRegistrant(db, person, code || await chooseGroup(db, person));
   if (row) return toPublic(row, false);
-  // Lost a race with an identical registration — return that one.
-  return toPublic(await findRegistrant(db, person), true);
+  // Lost a race with a registration under the same name — return that one
+  // (findRegistrant throws NameTakenError if it was for a different age).
+  const winner = await findRegistrant(db, person);
+  if (!winner) throw new Error('Youth registration insert was skipped without a matching name');
+  return toPublic(winner, true);
 }
 
 async function lookup(db, person) {
@@ -178,6 +262,6 @@ async function recordFailure(db, kind) {
 }
 
 module.exports = {
-  GROUPS, GRADES, ensureSchema, cleanPerson, gradeFor,
+  GROUPS, GRADES, ensureSchema, cleanPerson, gradeFor, nameKey, NameTakenError,
   register, lookup, listRegistrants, isLockedOut, recordFailure,
 };

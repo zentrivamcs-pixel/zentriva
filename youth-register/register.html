@@ -98,13 +98,13 @@ table{border-collapse:collapse;width:100%;font-size:15px}th,td{padding:7px 8px;b
 <section id="s-form" class="card">
  <h2>Registration</h2>
  <form id="f" novalidate>
-  <label class="f">Full name<input type="text" id="name" autocomplete="name" maxlength="80"></label>
-  <label class="f">Age<input type="number" id="age" inputmode="numeric" min="1" max="120"></label>
+  <label class="f">Full name<input type="text" id="name" autocomplete="name" autocapitalize="characters" maxlength="80" style="text-transform:uppercase"></label>
+  <label class="f">Age<input type="number" id="age" inputmode="numeric" min="1" max="120" step="1"></label>
   <fieldset><legend>Gender</legend><div class="opts">
    <label class="opt"><input type="radio" name="g" value="Male"> Male</label>
    <label class="opt"><input type="radio" name="g" value="Female"> Female</label></div></fieldset>
   <details id="coordBox"><summary class="note" style="cursor:pointer;min-height:44px;display:flex;align-items:center">I'm a coordinator</summary>
-   <label class="f" style="margin-top:6px">Coordinator code<input type="text" id="ccode" autocomplete="off" autocapitalize="characters"></label>
+   <label class="f" style="margin-top:6px">Coordinator code<input type="text" id="ccode" autocomplete="off" autocapitalize="characters" maxlength="64"></label>
    <p class="note" style="margin:6px 0 0">Coordinators get their badge straight away, with no spin.</p></details>
   <div><button class="btn" id="go" type="submit">Continue to spin</button></div>
   <div class="err" id="ferr" role="alert"></div>
@@ -130,7 +130,7 @@ table{border-collapse:collapse;width:100%;font-size:15px}th,td{padding:7px 8px;b
 
 <section id="s-admin" hidden>
  <div class="card" id="pinBox"><h2>Organiser</h2>
-  <form id="pf" style="gap:12px"><label class="f">PIN<input type="password" id="pin" inputmode="numeric" autocomplete="off"></label>
+  <form id="pf" style="gap:12px"><label class="f">PIN<input type="password" id="pin" inputmode="numeric" autocomplete="off" maxlength="64"></label>
   <div class="row" style="justify-content:flex-start;margin:0"><button class="btn" id="pgo">View groups</button><button class="btn ghost" type="button" id="pclose">Close</button></div>
   <div class="err" id="perr"></div></form></div>
  <div id="adminView" hidden>
