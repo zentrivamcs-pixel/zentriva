@@ -163,6 +163,22 @@ $("copy").addEventListener("click",function(){
  var ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
  var ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();$("copied").textContent=ok?"Copied.":"Copy blocked — select the lists instead."});
 
+/* export: one CSV for Excel, grouped KF, KS, CO then by tag */
+function csvCell(v){var s=String(v==null?"":v);
+ if(/^[=+\-@\t\r]/.test(s))s="'"+s; /* stop Excel treating a name as a formula */
+ return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+$("export").addEventListener("click",function(){
+ if(!adminRows.length){$("copied").textContent="No registrations to export yet.";return}
+ var order={KF:0,KS:1,CO:2},rows=adminRows.slice().sort(function(a,b){return (order[a.code]-order[b.code])||(a.tag<b.tag?-1:a.tag>b.tag?1:0)});
+ var lines=[["Tag","Name","Age","Gender","Age grade","Group"]].concat(rows.map(function(r){return [r.tag,r.name,r.age,r.gender,grade(r.age),NAMES[r.code]||r.group]}))
+  .map(function(l){return l.map(csvCell).join(",")});
+ var d=new Date(),day=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+ /* BOM so Excel reads the file as UTF-8 (names with accents, the – in age grades) */
+ var url=URL.createObjectURL(new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));
+ var a=document.createElement("a");a.href=url;a.download="youth-registrations-"+day+".csv";document.body.appendChild(a);a.click();a.remove();
+ setTimeout(function(){URL.revokeObjectURL(url)},1000);
+ $("copied").textContent="Downloaded "+rows.length+" "+(rows.length===1?"person":"people")+"."});
+
 /* returning visitor sees their card */
 try{var mine=JSON.parse(localStorage.getItem(KEY)||"null");if(mine&&mine.tag)showResult(mine)}catch(e){}
 })();

@@ -46,7 +46,10 @@ Do **not** change the `@`, `www`, MX or other TXT records.
   same as before.
 
 ## Exporting to Excel
-Organiser view → **Copy lists**, or query the table in the Turso dashboard
+Organiser view → **Download for Excel** saves everyone as one CSV file
+(`youth-registrations-YYYY-MM-DD.csv`: tag, name, age, gender, age grade,
+group) that opens in Excel or Google Sheets. **Copy lists** copies the
+groups as plain text instead. Or query the table in the Turso dashboard
 (`SELECT tag, full_name, age, gender, age_grade, group_name, created_at FROM
 youth_registrants ORDER BY code, seq`) and export it as CSV.
 
